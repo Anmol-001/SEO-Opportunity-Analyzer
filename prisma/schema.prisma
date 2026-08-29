@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SubmissionStatus {
+  pending
+  scanning
+  researching
+  ranking
+  competitors
+  keywords
+  generating
+  complete
+  failed
+}
+
+enum CompetitorType {
+  direct
+  directory
+  publisher
+  platform
+  other
+}
+
+enum OpportunityType {
+  existing
+  potential
+}
+
+enum WebhookDeliveryStatus {
+  pending
+  delivered
+  failed
+  skipped
+}
+
+enum ProbeStatus {
+  queued
+  complete
+  failed
+}
+
+model Submission {
+  id                  String           @id @default(cuid())
+  businessName        String
+  websiteUrl          String
+  normalizedDomain    String
+  industry            String
+  location            String
+  primaryService      String
+  mainGoal            String
+  targetKeywords      String[]
+  status              SubmissionStatus @default(pending)
+  progressMessage     String?
+  failureReason       String?
+  warnings            Json?
+  requestFingerprint  String?
+  opportunityScore    Int?
+  processingStartedAt DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  siteScan      SiteScan?
+  serpResults   SerpResult[]
+  keywords      Keyword[]
+  competitors   Competitor[]
+  report        Report?
+  webhookEvents WebhookEvent[]
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([requestFingerprint, createdAt])
+}
+
+model SiteScan {
+  id             String   @id @default(cuid())
+  submissionId   String   @unique
+  homepageUrl    String
+  robotsMetadata Json?
+  sitemapUrl     String?
+  warnings       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  pages      PageScan[]
+}
+
+model PageScan {
+  id               String   @id @default(cuid())
+  siteScanId       String
+  url              String
+  pageType         String?
+  title            String?
+  metaDescription  String?
+  h1               String?
+  h2s              String[]
+  mainText         String?  @db.Text
+  wordCount        Int?
+  internalLinks    Json?
+  imageAlts        String[]
+  canonicalUrl     String?
+  structuredData   Json?
+  robotsDirectives String[]
+  createdAt        DateTime @default(now())
+
+  siteScan SiteScan @relation(fields: [siteScanId], references: [id], onDelete: Cascade)
+
+  @@unique([siteScanId, url])
+  @@index([siteScanId])
+}
+
+model SerpResult {
+  id               String   @id @default(cuid())
+  submissionId     String
+  keyword          String
+  searchLocation   String
+  position         Int?
+  url              String?
+  domain           String?
+  title            String?
+  snippet          String?  @db.Text
+  resultType       String
+  serpFeatures     Json?
+  submittedSiteHit Boolean  @default(false)
+  rawProviderRef   String?
+  createdAt        DateTime @default(now())
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, keyword])
+  @@index([submissionId, domain])
+}
+
+model Keyword {
+  id                    String           @id @default(cuid())
+  submissionId          String
+  keyword               String
+  cluster               String?
+  intent                String?
+  searchVolume          Int?
+  cpc                   Decimal?         @db.Decimal(10, 2)
+  paidCompetitionSignal Float?
+  monthlyTrend          Json?
+  rankingPosition       Int?
+  rankingUrl            String?
+  competitorFrequency   Int              @default(0)
+  websiteRelevance      Float?
+  contentCoverage       Float?
+  keywordPriority       Int?
+  opportunityType       OpportunityType?
+  evidence              Json?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, keyword])
+  @@index([submissionId, keywordPriority])
+}
+
+model Competitor {
+  id              String         @id @default(cuid())
+  submissionId    String
+  domain          String
+  type            CompetitorType @default(other)
+  occurrenceCount Int            @default(1)
+  rankingUrls     String[]
+  positioning     String?
+  strengths       Json?
+  gap             Json?
+  evidence        Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, domain])
+  @@index([submissionId, occurrenceCount])
+}
+
+model Report {
+  id               String   @id @default(cuid())
+  submissionId     String   @unique
+  schemaVersion    String   @default("1.0")
+  opportunityScore Int
+  executiveSummary String   @db.Text
+  payload          Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+}
+
+model WebhookEvent {
+  id              String                @id @default(cuid())
+  submissionId    String
+  eventType       String
+  destinationHost String?
+  status          WebhookDeliveryStatus @default(pending)
+  responseStatus  Int?
+  attemptCount    Int                   @default(0)
+  lastError       String?               @db.Text
+  payload         Json
+  deliveredAt     DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, createdAt])
+}
+
+model InfrastructureProbe {
+  id          String      @id @default(cuid())
+  status      ProbeStatus @default(queued)
+  requestedAt DateTime    @default(now())
+  completedAt DateTime?
+  note        String?
+}
