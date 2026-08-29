@@ -20,14 +20,16 @@ Landing
   → recurring-domain competitor classification
   → up to five robots-aware competitor page checks
   → persisted Competitor strengths + gaps
+  → deterministic keyword classification + priority signals
+  → versioned weighted opportunity score
   → staged processing screen
   → persisted structured report
   → report and history screens
 ```
 
-`ANALYSIS_MODE=fixture` is an explicit incremental-delivery mode. It now performs a real, bounded website scan and live Serper research while exercising validation, persistence, background continuation, polling, report storage, and page routing. The report narrative is still representative fixture data and must not be mistaken for synthesized live recommendations.
+`ANALYSIS_MODE=fixture` is an explicit incremental-delivery mode. It performs a real, bounded website scan, live Serper and competitor research, and deterministic opportunity scoring while exercising validation, persistence, background continuation, polling, report storage, and page routing. The score and keyword opportunities are calculated evidence; narrative findings and recommendations are still representative fixture data and must not be mistaken for synthesized live recommendations.
 
-The application refuses `ANALYSIS_MODE=live` for now. This is intentional: real mode should only be enabled after the website scanner, SEO provider adapter, opportunity engine, and Gemini synthesis have been implemented and verified.
+The application refuses `ANALYSIS_MODE=live` for now. This is intentional: real mode should only be enabled after schema-constrained Gemini synthesis has been implemented and verified.
 
 ## Core boundaries
 
@@ -75,6 +77,15 @@ Prisma models preserve raw evidence and synthesized output separately:
 - Strengths and gaps are calculated from page evidence versus the submitted `PageScan` baseline and stored separately from later LLM interpretation.
 - A blocked or unavailable competitor page creates a warning while successful competitor evidence remains usable.
 
+### Deterministic opportunity scoring
+
+- Keyword finding IDs are stable for the same alphabetically normalized query set (`K001`, `K002`, and so on).
+- Existing opportunities require a submitted-domain ranking or strong relevant on-site coverage; the remaining queries are potential opportunities.
+- Per-keyword priority combines business relevance (30%), ranking opportunity (25%), content gap (20%), direct-competitor evidence (15%), and intent (10%).
+- The overall formula is versioned and combines website readiness (20%), keyword opportunity (25%), current-ranking opportunity (20%), SERP opportunity (20%), and competitive gaps (15%).
+- Each keyword stores its coverage, relevance, priority, classification, component signals, and a deterministic rationale.
+- Provider metrics remain optional: unavailable volume, CPC, and paid-competition values stay null and are explicitly disclosed in the report contract.
+
 ### Evidence contract
 
 The eventual live pipeline must preserve three layers:
@@ -95,7 +106,7 @@ validate + SSRF gate
   → submitted-domain ranking detection
   → recurring competitor classification
   → keyword metrics (optional, never invented)
-  → deterministic opportunity scoring
+  → deterministic opportunity scoring (implemented)
   → schema-constrained Gemini synthesis
   → report persistence
   → non-blocking webhook delivery

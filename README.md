@@ -2,7 +2,7 @@
 
 Searchlight turns a focused website scan, real search-result evidence, competitor patterns, and keyword signals into a prioritized SEO opportunity report.
 
-This repository currently contains the **initial execution phase, targeted website research, live SERP evidence collection, and competitor research**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, recurring-domain competitor classification, focused competitor-page comparison, and a protected `after()` infrastructure probe. Keyword metrics, opportunity scoring, Gemini synthesis, and webhook delivery remain later phases.
+This repository currently contains the **initial execution phase through deterministic opportunity scoring**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, recurring-domain competitor classification, focused competitor-page comparison, evidence-backed keyword classification, weighted opportunity scoring, and a protected `after()` infrastructure probe. Optional keyword metrics, Gemini synthesis, and webhook delivery remain later phases.
 
 ## Stack
 
@@ -84,6 +84,14 @@ npm run build
 - Extracts content depth, FAQ presence, structured-data types, location/service coverage, and CTA signals.
 - Compares competitor evidence with the submitted pages and persists observed strengths and gaps without treating blocked pages as successful evidence.
 
+## Opportunity scoring boundaries
+
+- Classifies each deterministic query as an existing or potential opportunity from observed ranking and submitted-page coverage.
+- Assigns stable finding IDs and calculates keyword priority from business relevance, ranking opportunity, content gap, direct-competitor recurrence, and intent.
+- Calculates the overall score with versioned weights: website readiness 20%, keyword opportunity 25%, current-ranking opportunity 20%, SERP opportunity 20%, and competitive gaps 15%.
+- Persists component signals and rationales so the calculation remains auditable and repeatable.
+- Leaves search volume, CPC, and paid-competition values null when the configured provider does not supply them.
+
 ## Manual deployment proof
 
 Deployment is intentionally left to the repository owner. Before connecting live providers:
@@ -123,7 +131,7 @@ The second response must show `status: "complete"` and a non-null `completedAt`.
 
 ## Important limitations
 
-- `fixture` mode performs and persists a real targeted website scan, live Serper research, and focused competitor research when `SERPER_API_KEY` is configured, but the displayed report narrative remains representative fixture evidence.
+- `fixture` mode performs and persists a real targeted website scan, live Serper research, focused competitor research, and deterministic opportunity scoring when `SERPER_API_KEY` is configured. The keyword table and score are evidence-backed, while narrative findings and recommendations remain representative fixture content until Gemini synthesis is implemented.
 - `live` mode is intentionally rejected until the research pipeline is implemented.
 - Authentication, billing, full crawling, backlinks, analytics integrations, rank tracking, scheduled scans, and PDF export remain out of scope for the MVP.
 

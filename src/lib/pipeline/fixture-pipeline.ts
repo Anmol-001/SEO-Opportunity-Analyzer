@@ -1,6 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { getDb } from "@/lib/db";
-import { demoReport } from "@/lib/reports/fixture";
 import {
   persistScanFailure,
   scanAndPersistSubmission,
@@ -13,11 +12,8 @@ import {
   discoverAndPersistCompetitors,
   persistCompetitorDiscoveryFailure,
 } from "@/lib/competitors/persist-competitors";
-
-const fixtureStages = [
-  ["keywords", "Scoring keyword opportunities"],
-  ["generating", "Generating evidence-linked recommendations"],
-] as const;
+import { scoreAndPersistSubmission } from "@/lib/scoring/persist-scoring";
+import { buildScoredFixtureReport } from "@/lib/scoring/scored-fixture-report";
 
 function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -100,24 +96,38 @@ export async function runFixturePipeline(submissionId: string) {
     }
     await delay(350);
 
-    for (const [status, progressMessage] of fixtureStages) {
-      await db.submission.update({
-        where: { id: submissionId },
-        data: {
-          status,
-          progressMessage,
-        },
-      });
-      await delay(350);
-    }
+    await db.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: "keywords",
+        progressMessage: "Calculating deterministic keyword opportunities",
+      },
+    });
+    const scoring = await scoreAndPersistSubmission(submissionId);
+    await db.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: "generating",
+        progressMessage: `Opportunity score calculated: ${scoring.overallScore}/100`,
+      },
+    });
+    await delay(350);
+
+    const reportPayload = buildScoredFixtureReport(scoring);
 
     await db.$transaction([
-      db.report.create({
-        data: {
+      db.report.upsert({
+        where: { submissionId },
+        create: {
           submissionId,
-          opportunityScore: 72,
-          executiveSummary: demoReport.executiveSummary.overallAssessment,
-          payload: demoReport as unknown as Prisma.InputJsonValue,
+          opportunityScore: scoring.overallScore,
+          executiveSummary: reportPayload.executiveSummary.overallAssessment,
+          payload: reportPayload as unknown as Prisma.InputJsonValue,
+        },
+        update: {
+          opportunityScore: scoring.overallScore,
+          executiveSummary: reportPayload.executiveSummary.overallAssessment,
+          payload: reportPayload as unknown as Prisma.InputJsonValue,
         },
       }),
       db.submission.update({
@@ -125,7 +135,7 @@ export async function runFixturePipeline(submissionId: string) {
         data: {
           status: "complete",
           progressMessage: "Report ready",
-          opportunityScore: 72,
+          opportunityScore: scoring.overallScore,
           completedAt: new Date(),
         },
       }),
