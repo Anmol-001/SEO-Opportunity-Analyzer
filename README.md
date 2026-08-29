@@ -2,7 +2,7 @@
 
 Searchlight turns a focused website scan, real search-result evidence, competitor patterns, and keyword signals into a prioritized SEO opportunity report.
 
-This repository currently contains the **initial execution phase**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background-processing fixture, persistent report contract, history, SSRF safeguards, and a protected `after()` infrastructure probe. Live website research, SEO provider calls, opportunity scoring, Gemini synthesis, and webhook delivery are the next implementation phase.
+This repository currently contains the **initial execution phase plus targeted website research**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, and a protected `after()` infrastructure probe. Live SEO provider calls, opportunity scoring, Gemini synthesis, and webhook delivery remain later phases.
 
 ## Stack
 
@@ -54,6 +54,16 @@ npm run build
 
 `GET /api/health` reports which integrations are configured without exposing their values. A `503 configuration_required` response is expected until `DATABASE_URL` is set.
 
+## Website scanner boundaries
+
+- Revalidates HTTP(S), hostname, standard port, and every resolved address before each request and redirect.
+- Rejects local, private, reserved, multicast, documentation, and internal network targets.
+- Uses manual redirects with a five-hop limit, per-request timeouts, content-type checks, and strict response-size limits.
+- Reads `robots.txt`, respects matching allow/disallow rules, and follows a bounded number of declared/default sitemaps.
+- Selects at most five pages: homepage, primary service, location, service + location, and one additional relevant page when available.
+- Extracts titles, descriptions, headings, main text, word count, internal links, image alt text, canonical URLs, robots directives, and valid JSON-LD.
+- Persists scan warnings without inventing missing evidence. A website failure can remain a partial failure while later research stages continue.
+
 ## Manual deployment proof
 
 Deployment is intentionally left to the repository owner. Before connecting live providers:
@@ -93,7 +103,7 @@ The second response must show `status: "complete"` and a non-null `completedAt`.
 
 ## Important limitations
 
-- `fixture` mode uses representative report evidence only; it does not claim to have queried the submitted website or a live SEO provider.
+- `fixture` mode performs and persists a real targeted website scan, but the displayed report narrative remains representative fixture evidence and does not claim to come from a live SEO provider.
 - `live` mode is intentionally rejected until the research pipeline is implemented.
 - Authentication, billing, full crawling, backlinks, analytics integrations, rank tracking, scheduled scans, and PDF export remain out of scope for the MVP.
 

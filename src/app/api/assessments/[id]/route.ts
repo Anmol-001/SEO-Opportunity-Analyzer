@@ -27,6 +27,7 @@ export async function GET(
       status: true,
       progressMessage: true,
       failureReason: true,
+      warnings: true,
       opportunityScore: true,
       createdAt: true,
       completedAt: true,
@@ -35,6 +36,23 @@ export async function GET(
           schemaVersion: true,
           opportunityScore: true,
           payload: true,
+        },
+      },
+      siteScan: {
+        select: {
+          homepageUrl: true,
+          sitemapUrl: true,
+          warnings: true,
+          robotsMetadata: true,
+          pages: {
+            orderBy: { createdAt: "asc" },
+            select: {
+              url: true,
+              pageType: true,
+              title: true,
+              wordCount: true,
+            },
+          },
         },
       },
     },

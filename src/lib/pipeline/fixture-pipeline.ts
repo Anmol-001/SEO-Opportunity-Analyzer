@@ -1,9 +1,12 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { getDb } from "@/lib/db";
 import { demoReport } from "@/lib/reports/fixture";
+import {
+  persistScanFailure,
+  scanAndPersistSubmission,
+} from "@/lib/scanner/persist-scan";
 
 const fixtureStages = [
-  ["scanning", "Analyzing the website sample"],
   ["researching", "Researching the search landscape"],
   ["ranking", "Checking submitted-domain visibility"],
   ["competitors", "Comparing recurring competitors"],
@@ -19,13 +22,35 @@ export async function runFixturePipeline(submissionId: string) {
   const db = getDb();
 
   try {
+    await db.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: "scanning",
+        progressMessage: "Analyzing a focused website sample",
+        processingStartedAt: new Date(),
+      },
+    });
+
+    try {
+      const scan = await scanAndPersistSubmission(submissionId);
+      await db.submission.update({
+        where: { id: submissionId },
+        data: {
+          progressMessage: `Website analyzed: ${scan.pages.length} page${scan.pages.length === 1 ? "" : "s"}`,
+        },
+      });
+    } catch (error) {
+      await persistScanFailure(submissionId, error);
+    }
+
+    await delay(350);
+
     for (const [status, progressMessage] of fixtureStages) {
       await db.submission.update({
         where: { id: submissionId },
         data: {
           status,
           progressMessage,
-          processingStartedAt: status === "scanning" ? new Date() : undefined,
         },
       });
       await delay(350);

@@ -10,13 +10,16 @@ Landing
   → POST /api/analyze
   → PostgreSQL Submission row
   → immediate 202 response
-  → Next.js after() fixture pipeline
+  → Next.js after() pipeline
+  → redirect-safe targeted website scan
+  → robots/sitemap discovery
+  → 1–5 PageScan records
   → staged processing screen
   → persisted structured report
   → report and history screens
 ```
 
-`ANALYSIS_MODE=fixture` is an explicit initial-phase mode. It exercises validation, persistence, background continuation, polling, report storage, and page routing with representative report data. It must not be mistaken for live SEO research.
+`ANALYSIS_MODE=fixture` is an explicit initial-phase mode. It now performs a real, bounded website scan and exercises validation, persistence, background continuation, polling, report storage, and page routing. The report narrative is still representative fixture data and must not be mistaken for live SERP or keyword research.
 
 The application refuses `ANALYSIS_MODE=live` for now. This is intentional: real mode should only be enabled after the website scanner, SEO provider adapter, opportunity engine, and Gemini synthesis have been implemented and verified.
 
@@ -78,7 +81,10 @@ Every external stage will return evidence plus warnings. A missing optional sour
 
 - Website inputs accept only HTTP(S) public hosts.
 - Static hostname checks reject localhost, private/reserved IP ranges, and common internal suffixes.
-- DNS resolution is checked before the URL is accepted; the scanner must repeat the resolution check before every fetch and redirect.
+- DNS resolution is checked before submission and repeated before every scanner request and redirect.
+- Only standard HTTP(S) ports are accepted; redirects are manual and bounded.
+- HTML, robots, and sitemap responses have independent time, type, and byte limits.
+- Robots rules are respected for additional pages, and sitemap traversal has strict document and URL budgets.
 - Webhook destinations remain server-configured.
 - Provider and database credentials remain server-only.
 - Submission throttling uses a salted request fingerprint stored in PostgreSQL.

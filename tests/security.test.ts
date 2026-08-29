@@ -27,14 +27,25 @@ test("rejects private and reserved IPv4 addresses", () => {
     "172.16.0.1",
     "172.31.255.255",
     "192.168.1.1",
+    "198.18.0.1",
+    "198.51.100.10",
+    "203.0.113.10",
     "224.0.0.1",
   ]) {
     assert.throws(() => assertSafeHostname(hostname), hostname);
   }
 });
 
-test("rejects loopback, local, and unspecified IPv6 addresses", () => {
-  for (const hostname of ["::", "::1", "fc00::1", "fd00::1", "fe80::1"]) {
+test("rejects loopback, local, documentation, and unspecified IPv6 addresses", () => {
+  for (const hostname of [
+    "::",
+    "::1",
+    "fc00::1",
+    "fd00::1",
+    "fe80::1",
+    "ff02::1",
+    "2001:db8::1",
+  ]) {
     assert.throws(() => assertSafeHostname(hostname), hostname);
   }
 });
