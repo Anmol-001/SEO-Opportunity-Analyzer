@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/security.test.ts tests/validation.test.ts tests/scanner-security.test.ts tests/scanner-analysis.test.ts tests/scanner-flow.test.ts",
+    "test": "node --experimental-strip-types --test tests/security.test.ts tests/validation.test.ts tests/scanner-security.test.ts tests/scanner-analysis.test.ts tests/scanner-flow.test.ts tests/query-discovery.test.ts tests/serper-provider.test.ts tests/serp-research.test.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

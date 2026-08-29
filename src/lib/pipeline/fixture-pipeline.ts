@@ -5,10 +5,12 @@ import {
   persistScanFailure,
   scanAndPersistSubmission,
 } from "@/lib/scanner/persist-scan";
+import {
+  persistSerpResearchFailure,
+  researchAndPersistSubmission,
+} from "@/lib/research/persist-serp-research";
 
 const fixtureStages = [
-  ["researching", "Researching the search landscape"],
-  ["ranking", "Checking submitted-domain visibility"],
   ["competitors", "Comparing recurring competitors"],
   ["keywords", "Scoring keyword opportunities"],
   ["generating", "Generating evidence-linked recommendations"],
@@ -43,6 +45,36 @@ export async function runFixturePipeline(submissionId: string) {
       await persistScanFailure(submissionId, error);
     }
 
+    await delay(350);
+
+    await db.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: "researching",
+        progressMessage: "Collecting live search results with Serper",
+      },
+    });
+
+    let successfulQueries = 0;
+    let queryCount = 0;
+    try {
+      const research = await researchAndPersistSubmission(submissionId);
+      successfulQueries = research.successfulQueries;
+      queryCount = research.queryCount;
+    } catch (error) {
+      await persistSerpResearchFailure(submissionId, error);
+    }
+
+    await db.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: "ranking",
+        progressMessage:
+          successfulQueries > 0
+            ? `Visibility checked across ${successfulQueries} of ${queryCount} queries`
+            : "Search data unavailable; continuing with available evidence",
+      },
+    });
     await delay(350);
 
     for (const [status, progressMessage] of fixtureStages) {

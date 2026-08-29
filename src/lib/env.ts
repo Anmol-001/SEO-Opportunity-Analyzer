@@ -1,10 +1,3 @@
-const requiredForLiveAnalysis = [
-  "DATABASE_URL",
-  "GEMINI_API_KEY",
-  "DATAFORSEO_LOGIN",
-  "DATAFORSEO_PASSWORD",
-] as const;
-
 export function runtimeReadiness() {
   const database = Boolean(process.env.DATABASE_URL);
   const ai = Boolean(process.env.GEMINI_API_KEY);
@@ -14,6 +7,14 @@ export function runtimeReadiness() {
   const serper = Boolean(process.env.SERPER_API_KEY);
   const webhook = Boolean(process.env.WEBHOOK_URL);
   const analysisMode = process.env.ANALYSIS_MODE ?? "fixture";
+  const missingForLive: string[] = [];
+  if (!database) missingForLive.push("DATABASE_URL");
+  if (!ai) missingForLive.push("GEMINI_API_KEY");
+  if (!dataForSeo && !serper) {
+    missingForLive.push(
+      "DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD or SERPER_API_KEY",
+    );
+  }
 
   return {
     readyForFixture: database,
@@ -26,6 +27,6 @@ export function runtimeReadiness() {
       serper,
       webhook,
     },
-    missingForLive: requiredForLiveAnalysis.filter((key) => !process.env[key]),
+    missingForLive,
   };
 }

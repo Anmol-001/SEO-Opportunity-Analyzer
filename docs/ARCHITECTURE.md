@@ -14,12 +14,15 @@ Landing
   → redirect-safe targeted website scan
   → robots/sitemap discovery
   → 1–5 PageScan records
+  → deterministic 5–8 query discovery
+  → localized Serper collection
+  → SerpResult + Keyword ranking evidence
   → staged processing screen
   → persisted structured report
   → report and history screens
 ```
 
-`ANALYSIS_MODE=fixture` is an explicit initial-phase mode. It now performs a real, bounded website scan and exercises validation, persistence, background continuation, polling, report storage, and page routing. The report narrative is still representative fixture data and must not be mistaken for live SERP or keyword research.
+`ANALYSIS_MODE=fixture` is an explicit incremental-delivery mode. It now performs a real, bounded website scan and live Serper research while exercising validation, persistence, background continuation, polling, report storage, and page routing. The report narrative is still representative fixture data and must not be mistaken for synthesized live recommendations.
 
 The application refuses `ANALYSIS_MODE=live` for now. This is intentional: real mode should only be enabled after the website scanner, SEO provider adapter, opportunity engine, and Gemini synthesis have been implemented and verified.
 
@@ -47,7 +50,16 @@ Prisma models preserve raw evidence and synthesized output separately:
 
 ### Provider abstraction
 
-`src/lib/providers/seo-provider.ts` defines the internal SEO provider contract. DataForSEO will implement all methods. Serper will implement SERP and location behavior while returning an explicit unavailable result for keyword metrics. No provider is allowed to fabricate search volume.
+`src/lib/providers/seo-provider.ts` defines the internal SEO provider contract. The Serper adapter now implements localized SERP behavior and returns an explicit unavailable result for keyword metrics. DataForSEO remains the planned implementation for search volume, CPC, paid competition, and monthly trends. No provider is allowed to fabricate search volume.
+
+### Query and SERP research
+
+- Query discovery is deterministic and produces no more than eight queries.
+- User-supplied keywords remain the first seeds; generated queries fill coverage gaps across core, commercial, pricing, informational, and local intent.
+- Serper requests use a constant server-side endpoint, bounded concurrency, timeout handling, response-size limits, and normalized response parsing.
+- One SERP summary row preserves features and related searches for each successful query; organic result rows preserve position, URL, domain, title, and snippet.
+- Ranking detection accepts the submitted domain and its subdomains while rejecting lookalike suffixes.
+- Bulk persistence keeps Neon writes inside a short database transaction.
 
 ### Evidence contract
 

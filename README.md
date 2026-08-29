@@ -2,7 +2,7 @@
 
 Searchlight turns a focused website scan, real search-result evidence, competitor patterns, and keyword signals into a prioritized SEO opportunity report.
 
-This repository currently contains the **initial execution phase plus targeted website research**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, and a protected `after()` infrastructure probe. Live SEO provider calls, opportunity scoring, Gemini synthesis, and webhook delivery remain later phases.
+This repository currently contains the **initial execution phase, targeted website research, and live SERP evidence collection**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, and a protected `after()` infrastructure probe. Competitor analysis, keyword metrics, opportunity scoring, Gemini synthesis, and webhook delivery remain later phases.
 
 ## Stack
 
@@ -64,6 +64,16 @@ npm run build
 - Extracts titles, descriptions, headings, main text, word count, internal links, image alt text, canonical URLs, robots directives, and valid JSON-LD.
 - Persists scan warnings without inventing missing evidence. A website failure can remain a partial failure while later research stages continue.
 
+## SERP research boundaries
+
+- Builds a deterministic set of five to eight queries from user seeds, service, location, industry, and business goal.
+- Preserves query clusters and intent labels rather than asking an LLM to invent search terms.
+- Uses the server-only `SERPER_API_KEY` for localized Google searches with two-request concurrency and request timeouts.
+- Stores normalized organic results, related searches, and detected SERP features in `SerpResult`.
+- Detects exact-domain and subdomain visibility and stores the actual ranking URL/position on `Keyword`.
+- Isolates individual query failures and continues with successful evidence.
+- Explicitly records that search-volume, CPC, and paid-competition data are unavailable from Serper.
+
 ## Manual deployment proof
 
 Deployment is intentionally left to the repository owner. Before connecting live providers:
@@ -103,7 +113,7 @@ The second response must show `status: "complete"` and a non-null `completedAt`.
 
 ## Important limitations
 
-- `fixture` mode performs and persists a real targeted website scan, but the displayed report narrative remains representative fixture evidence and does not claim to come from a live SEO provider.
+- `fixture` mode performs and persists a real targeted website scan and live Serper research when `SERPER_API_KEY` is configured, but the displayed report narrative remains representative fixture evidence.
 - `live` mode is intentionally rejected until the research pipeline is implemented.
 - Authentication, billing, full crawling, backlinks, analytics integrations, rank tracking, scheduled scans, and PDF export remain out of scope for the MVP.
 
