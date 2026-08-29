@@ -2,7 +2,7 @@
 
 Searchlight turns a focused website scan, real search-result evidence, competitor patterns, and keyword signals into a prioritized SEO opportunity report.
 
-This repository currently contains the **initial execution phase through persisted completion webhooks**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, recurring-domain competitor classification, focused competitor-page comparison, evidence-backed keyword classification, weighted opportunity scoring, schema-constrained Gemini synthesis, isolated completion-webhook delivery, and a protected `after()` infrastructure probe. Optional keyword metrics remain a later enhancement.
+This repository contains the **complete locally validated MVP pipeline**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated and throttled assessment flow, staged background processing, browser-scoped history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, recurring-domain competitor classification, focused competitor-page comparison, evidence-backed keyword classification, weighted opportunity scoring, schema-constrained Gemini synthesis, isolated completion-webhook delivery, and a protected `after()` infrastructure probe. Optional keyword metrics remain a later enhancement.
 
 ## Stack
 
@@ -27,7 +27,7 @@ This repository currently contains the **initial execution phase through persist
    Copy-Item .env.example .env.local
    ```
 
-3. Set `DATABASE_URL` to a Neon PostgreSQL connection string. Keep `ANALYSIS_MODE="fixture"` during this initial phase.
+3. Set `DATABASE_URL` to a Neon PostgreSQL connection string. Use `ANALYSIS_MODE="fixture"` while integrations are intentionally incomplete; use `live` only after `/api/health` reports the selected mode as ready.
 
 4. Generate the Prisma client and apply the committed migration:
 
@@ -53,7 +53,16 @@ npm run lint
 npm run build
 ```
 
-`GET /api/health` reports which integrations are configured without exposing their values. A `503 configuration_required` response is expected until `DATABASE_URL` is set.
+`GET /api/health` reports which integrations are configured without exposing their values. It returns `503 configuration_required` until the currently selected mode passes its readiness checks.
+
+## Production hardening
+
+- `POST /api/analyze` accepts only bounded `application/json` request bodies and rejects malformed or oversized input before provider work begins.
+- Submission throttling hashes the closest valid proxy address with `RATE_LIMIT_SALT`; production and live readiness require at least 32 non-placeholder characters.
+- `ANALYSIS_MODE=live` runs the real scanner, Serper, competitor, scoring, Gemini, persistence, and webhook pipeline only when all required integrations, the trusted public origin, throttling salt, and any enabled smoke-test token are valid.
+- `/api/health` is mode-aware and returns `503` when the selected mode is not ready.
+- Assessment history stores only a bounded list of opaque assessment IDs in an HTTP-only, same-site browser cookie. It never lists other visitors' database records; direct report links remain intentionally shareable.
+- All routes receive a content security policy, frame protection, MIME sniffing protection, a strict referrer policy, and a minimal permissions policy. Production responses also receive HSTS; assessment, history, and API responses are private, non-cacheable, and excluded from search indexing.
 
 ## Website scanner boundaries
 
@@ -142,7 +151,7 @@ The second response must show `status: "complete"` and a non-null `completedAt`.
 - `/assessment/demo` — representative structured report
 - `/assessment/:id/processing` — live stage polling
 - `/assessment/:id` — persisted report
-- `/history` — saved assessments
+- `/history` — assessments saved in the current browser
 - `/api/health` — configuration readiness
 - `/api/analyze` — assessment creation
 - `/api/assessments/:id` — status and report retrieval
@@ -151,7 +160,7 @@ The second response must show `status: "complete"` and a non-null `completedAt`.
 ## Important limitations
 
 - `fixture` mode performs and persists a real targeted website scan, live Serper research, focused competitor research, deterministic opportunity scoring, Gemini synthesis, and completion webhook delivery when the corresponding server-side configuration is present. Missing or invalid AI output produces a disclosed deterministic fallback, while a missing webhook records a skipped delivery.
-- `live` mode remains intentionally rejected until final hardening and the owner-run production proof are complete.
+- `live` mode is implemented and configuration-gated. The remaining release gate is the owner-run Vercel/Neon production proof described above.
 - Authentication, billing, full crawling, backlinks, analytics integrations, rank tracking, scheduled scans, and PDF export remain out of scope for the MVP.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for component boundaries, data policy, security baseline, and the planned live pipeline.

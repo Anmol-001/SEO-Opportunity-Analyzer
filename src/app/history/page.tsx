@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import { ArrowRight, Clock3, FileBarChart, Plus } from "lucide-react";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { getDb } from "@/lib/db";
 import { demoAssessment } from "@/lib/reports/fixture";
+import {
+  ASSESSMENT_HISTORY_COOKIE,
+  parseAssessmentHistory,
+} from "@/lib/security/assessment-history";
 
 export const metadata: Metadata = {
   title: "Assessment history",
@@ -21,13 +26,13 @@ interface HistoryItem {
   createdAt: Date;
 }
 
-async function getAssessments(): Promise<HistoryItem[]> {
-  if (!process.env.DATABASE_URL) return [];
+async function getAssessments(ids: string[]): Promise<HistoryItem[]> {
+  if (!process.env.DATABASE_URL || ids.length === 0) return [];
 
   try {
     return await getDb().submission.findMany({
+      where: { id: { in: ids } },
       orderBy: { createdAt: "desc" },
-      take: 30,
       select: {
         id: true,
         businessName: true,
@@ -43,7 +48,11 @@ async function getAssessments(): Promise<HistoryItem[]> {
 }
 
 export default async function HistoryPage() {
-  const assessments = await getAssessments();
+  const cookieStore = await cookies();
+  const historyIds = parseAssessmentHistory(
+    cookieStore.get(ASSESSMENT_HISTORY_COOKIE)?.value,
+  );
+  const assessments = await getAssessments(historyIds);
   const items: HistoryItem[] = [
     ...assessments,
     {
@@ -66,7 +75,7 @@ export default async function HistoryPage() {
               Assessment history
             </h1>
             <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">
-              Revisit completed reports or check the progress of an assessment in flight.
+              Revisit reports started in this browser or check an assessment in flight.
             </p>
           </div>
           <Button asChild>

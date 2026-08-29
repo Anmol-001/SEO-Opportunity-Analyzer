@@ -9,10 +9,13 @@ export async function GET() {
 
   return NextResponse.json(
     {
-      status: readiness.readyForFixture ? "ready" : "configuration_required",
+      status: readiness.readyForCurrentMode ? "ready" : "configuration_required",
       timestamp: new Date().toISOString(),
       ...readiness,
     },
-    { status: readiness.readyForFixture ? 200 : 503 },
+    {
+      status: readiness.readyForCurrentMode ? 200 : 503,
+      headers: { "Cache-Control": "no-store" },
+    },
   );
 }

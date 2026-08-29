@@ -1,6 +1,6 @@
 # Searchlight architecture
 
-Searchlight is an evidence-led SEO research workflow, not a general-purpose SEO platform. The initial codebase deliberately separates the working SaaS flow from the live research implementation so the product can be tested end to end before external provider logic is added.
+Searchlight is an evidence-led SEO research workflow, not a general-purpose SEO platform. The codebase separates external evidence collection, deterministic scoring, AI interpretation, persistence, and delivery so each boundary can fail safely and be tested independently.
 
 ## Current initial slice
 
@@ -30,9 +30,9 @@ Landing
   → report and history screens
 ```
 
-`ANALYSIS_MODE=fixture` is an explicit incremental-delivery mode. It performs a real, bounded website scan, live Serper and competitor research, deterministic opportunity scoring, and evidence-bound Gemini synthesis while exercising validation, persistence, background continuation, polling, report storage, and page routing. When Gemini is unavailable or its output is rejected, the assessment completes with a disclosed deterministic report rather than unrelated fixture content.
+`ANALYSIS_MODE=fixture` is an explicit partial-configuration mode. It performs the same real, bounded website scan, live Serper and competitor research, deterministic opportunity scoring, and evidence-bound Gemini synthesis while allowing optional integrations to be absent. When Gemini is unavailable or its output is rejected, the assessment completes with a disclosed deterministic report rather than unrelated fixture content.
 
-The application refuses `ANALYSIS_MODE=live` for now. The research, scoring, synthesis, persistence, and webhook stages are implemented; the remaining gate is final hardening and an owner-run production proof.
+`ANALYSIS_MODE=live` uses the same pipeline but is rejected unless the database, Gemini, a SERP provider, webhook, trusted public origin, rate-limit salt, and any enabled smoke-test token pass runtime readiness. The only remaining release gate is the owner-run production proof.
 
 ## Core boundaries
 
@@ -150,11 +150,15 @@ Every external stage will return evidence plus warnings. A missing optional sour
 - Webhook destinations remain server-configured.
 - Provider and database credentials remain server-only.
 - Submission throttling uses a salted request fingerprint stored in PostgreSQL.
+- Assessment requests require bounded JSON bodies, and rate-limit reset responses describe the actual remaining window.
+- Production and live readiness reject weak placeholder throttling salts and unsafe public origins.
+- Browser history is scoped to opaque assessment IDs in an HTTP-only same-site cookie rather than a global submission listing.
+- Application responses set CSP, frame, MIME, referrer, permissions, and production transport-security headers.
 - The infrastructure probe is disabled by default and protected by a constant-time token check.
 
 ## Production proof gate
 
-Before implementing the complete research pipeline, deploy the current fixture slice manually and prove:
+Before declaring the release production-ready, deploy manually and prove:
 
 1. `POST /api/smoke/background` returns `202` immediately.
 2. The probe begins in `queued` state.

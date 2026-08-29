@@ -20,7 +20,7 @@ function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-export async function runFixturePipeline(submissionId: string) {
+export async function runAnalysisPipeline(submissionId: string) {
   const db = getDb();
 
   try {
@@ -146,14 +146,15 @@ export async function runFixturePipeline(submissionId: string) {
     ]);
     await deliverCompletionWebhook(submissionId).catch(() => undefined);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown pipeline error";
+    console.error("Assessment pipeline failed.", { submissionId, error });
     await db.submission
       .update({
         where: { id: submissionId },
         data: {
           status: "failed",
           progressMessage: "Assessment could not be completed",
-          failureReason: message.slice(0, 500),
+          failureReason:
+            "The analysis could not be completed with enough reliable evidence. Please try again.",
         },
       })
       .catch(() => undefined);
