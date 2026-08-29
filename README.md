@@ -2,7 +2,7 @@
 
 Searchlight turns a focused website scan, real search-result evidence, competitor patterns, and keyword signals into a prioritized SEO opportunity report.
 
-This repository currently contains the **initial execution phase, targeted website research, and live SERP evidence collection**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, and a protected `after()` infrastructure probe. Competitor analysis, keyword metrics, opportunity scoring, Gemini synthesis, and webhook delivery remain later phases.
+This repository currently contains the **initial execution phase, targeted website research, live SERP evidence collection, and competitor research**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, recurring-domain competitor classification, focused competitor-page comparison, and a protected `after()` infrastructure probe. Keyword metrics, opportunity scoring, Gemini synthesis, and webhook delivery remain later phases.
 
 ## Stack
 
@@ -74,6 +74,16 @@ npm run build
 - Isolates individual query failures and continues with successful evidence.
 - Explicitly records that search-volume, CPC, and paid-competition data are unavailable from Serper.
 
+## Competitor research boundaries
+
+- Aggregates recurring organic domains by distinct query presence and normalizes common country-code domain suffixes.
+- Excludes the submitted domain and classifies known platforms, directories/marketplaces, publishers, direct competitors, and other results deterministically.
+- Ranks candidates using frequency, best organic position, topical relevance, and a type weight.
+- Selects no more than five direct competitors and inspects one ranking page per domain.
+- Reuses the scanner's DNS/SSRF, redirect, timeout, content-type, and byte protections and checks each domain's robots rules before fetching its ranking page.
+- Extracts content depth, FAQ presence, structured-data types, location/service coverage, and CTA signals.
+- Compares competitor evidence with the submitted pages and persists observed strengths and gaps without treating blocked pages as successful evidence.
+
 ## Manual deployment proof
 
 Deployment is intentionally left to the repository owner. Before connecting live providers:
@@ -113,7 +123,7 @@ The second response must show `status: "complete"` and a non-null `completedAt`.
 
 ## Important limitations
 
-- `fixture` mode performs and persists a real targeted website scan and live Serper research when `SERPER_API_KEY` is configured, but the displayed report narrative remains representative fixture evidence.
+- `fixture` mode performs and persists a real targeted website scan, live Serper research, and focused competitor research when `SERPER_API_KEY` is configured, but the displayed report narrative remains representative fixture evidence.
 - `live` mode is intentionally rejected until the research pipeline is implemented.
 - Authentication, billing, full crawling, backlinks, analytics integrations, rank tracking, scheduled scans, and PDF export remain out of scope for the MVP.
 

@@ -69,6 +69,19 @@ export async function GET(
           evidence: true,
         },
       },
+      competitors: {
+        orderBy: [{ occurrenceCount: "desc" }, { domain: "asc" }],
+        select: {
+          domain: true,
+          type: true,
+          occurrenceCount: true,
+          rankingUrls: true,
+          positioning: true,
+          strengths: true,
+          gap: true,
+          evidence: true,
+        },
+      },
       _count: {
         select: { serpResults: true },
       },
@@ -79,12 +92,16 @@ export async function GET(
     return NextResponse.json({ error: "Assessment not found." }, { status: 404 });
   }
 
-  const { _count, keywords, ...submission } = assessment;
+  const { _count, keywords, competitors, ...submission } = assessment;
   return NextResponse.json({
     ...submission,
     serpResearch: {
       resultCount: _count.serpResults,
       queries: keywords,
+    },
+    competitorResearch: {
+      count: competitors.length,
+      competitors,
     },
   });
 }

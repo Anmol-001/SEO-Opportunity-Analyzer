@@ -9,9 +9,12 @@ import {
   persistSerpResearchFailure,
   researchAndPersistSubmission,
 } from "@/lib/research/persist-serp-research";
+import {
+  discoverAndPersistCompetitors,
+  persistCompetitorDiscoveryFailure,
+} from "@/lib/competitors/persist-competitors";
 
 const fixtureStages = [
-  ["competitors", "Comparing recurring competitors"],
   ["keywords", "Scoring keyword opportunities"],
   ["generating", "Generating evidence-linked recommendations"],
 ] as const;
@@ -75,6 +78,26 @@ export async function runFixturePipeline(submissionId: string) {
             : "Search data unavailable; continuing with available evidence",
       },
     });
+    await delay(350);
+
+    await db.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: "competitors",
+        progressMessage: "Identifying and comparing recurring competitors",
+      },
+    });
+    try {
+      const competitors = await discoverAndPersistCompetitors(submissionId);
+      await db.submission.update({
+        where: { id: submissionId },
+        data: {
+          progressMessage: `Analyzed ${competitors.analyzedCount} of ${competitors.selectedCount} selected competitors`,
+        },
+      });
+    } catch (error) {
+      await persistCompetitorDiscoveryFailure(submissionId, error);
+    }
     await delay(350);
 
     for (const [status, progressMessage] of fixtureStages) {

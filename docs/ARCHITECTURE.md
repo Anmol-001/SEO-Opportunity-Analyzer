@@ -17,6 +17,9 @@ Landing
   → deterministic 5–8 query discovery
   → localized Serper collection
   → SerpResult + Keyword ranking evidence
+  → recurring-domain competitor classification
+  → up to five robots-aware competitor page checks
+  → persisted Competitor strengths + gaps
   → staged processing screen
   → persisted structured report
   → report and history screens
@@ -60,6 +63,17 @@ Prisma models preserve raw evidence and synthesized output separately:
 - One SERP summary row preserves features and related searches for each successful query; organic result rows preserve position, URL, domain, title, and snippet.
 - Ranking detection accepts the submitted domain and its subdomains while rejecting lookalike suffixes.
 - Bulk persistence keeps Neon writes inside a short database transaction.
+
+### Competitor research
+
+- Organic SERP domains are aggregated by the number of distinct queries in which they appear; the submitted domain is excluded.
+- Deterministic domain lists separate known platforms, directories/marketplaces, and publishers before topical relevance is used to classify direct competitors.
+- Candidate ordering combines recurring-query frequency, best position, service/industry term coverage, and domain type.
+- At most five direct competitors are inspected, using only their strongest stored ranking URL.
+- Competitor page requests reuse the scanner's SSRF and response limits, fetch robots rules first, and reject cross-domain final redirects.
+- Page evidence records content depth, FAQ presence, structured data, location/service mentions, and CTA signals.
+- Strengths and gaps are calculated from page evidence versus the submitted `PageScan` baseline and stored separately from later LLM interpretation.
+- A blocked or unavailable competitor page creates a warning while successful competitor evidence remains usable.
 
 ### Evidence contract
 
