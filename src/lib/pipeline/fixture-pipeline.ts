@@ -14,6 +14,7 @@ import {
 } from "@/lib/competitors/persist-competitors";
 import { scoreAndPersistSubmission } from "@/lib/scoring/persist-scoring";
 import { synthesizeSubmissionReport } from "@/lib/ai/synthesize-report";
+import { deliverCompletionWebhook } from "@/lib/webhooks/persist-webhook";
 
 function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -143,6 +144,7 @@ export async function runFixturePipeline(submissionId: string) {
         },
       }),
     ]);
+    await deliverCompletionWebhook(submissionId).catch(() => undefined);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown pipeline error";
     await db.submission

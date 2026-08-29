@@ -87,6 +87,20 @@ export async function GET(
           evidence: true,
         },
       },
+      webhookEvents: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          eventType: true,
+          destinationHost: true,
+          status: true,
+          responseStatus: true,
+          attemptCount: true,
+          lastError: true,
+          deliveredAt: true,
+          createdAt: true,
+        },
+      },
       _count: {
         select: { serpResults: true },
       },
@@ -97,7 +111,7 @@ export async function GET(
     return NextResponse.json({ error: "Assessment not found." }, { status: 404 });
   }
 
-  const { _count, keywords, competitors, ...submission } = assessment;
+  const { _count, keywords, competitors, webhookEvents, ...submission } = assessment;
   return NextResponse.json({
     ...submission,
     serpResearch: {
@@ -108,5 +122,6 @@ export async function GET(
       count: competitors.length,
       competitors,
     },
+    webhookDelivery: webhookEvents[0] ?? null,
   });
 }

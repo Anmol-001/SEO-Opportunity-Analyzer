@@ -24,14 +24,15 @@ Landing
   → versioned weighted opportunity score
   → bounded evidence packet
   → schema-constrained Gemini synthesis or deterministic fallback
+  → report + completed assessment persistence
+  → isolated completion webhook attempt
   → staged processing screen
-  → persisted structured report
   → report and history screens
 ```
 
 `ANALYSIS_MODE=fixture` is an explicit incremental-delivery mode. It performs a real, bounded website scan, live Serper and competitor research, deterministic opportunity scoring, and evidence-bound Gemini synthesis while exercising validation, persistence, background continuation, polling, report storage, and page routing. When Gemini is unavailable or its output is rejected, the assessment completes with a disclosed deterministic report rather than unrelated fixture content.
 
-The application refuses `ANALYSIS_MODE=live` for now. This is intentional until the remaining completion-webhook stage and full production proof have been implemented and verified.
+The application refuses `ANALYSIS_MODE=live` for now. The research, scoring, synthesis, persistence, and webhook stages are implemented; the remaining gate is final hardening and an owner-run production proof.
 
 ## Core boundaries
 
@@ -99,6 +100,17 @@ Prisma models preserve raw evidence and synthesized output separately:
 - Missing configuration, provider errors, malformed output, and policy violations are isolated as warnings and produce a conservative deterministic fallback.
 - Persisted report schema version `1.1` records whether synthesis used Gemini or the fallback and identifies the model when applicable.
 
+### Completion webhook
+
+- `WEBHOOK_URL` is server configuration and is never accepted from assessment input.
+- The destination must be public HTTPS on port 443, pass hostname and DNS checks, and return directly without a redirect.
+- The payload contains only event name, assessment ID, business name, website, completed status, deterministic score, and completion timestamp.
+- Each delivery is stored before the request. Transient network, timeout, 408, 425, 429, and 5xx failures receive one bounded retry; other responses are terminal.
+- `idempotency-key` and `x-searchlight-delivery` identify a persisted event, and an already delivered completion event is not emitted again.
+- `WEBHOOK_SECRET` optionally adds an HMAC-SHA256 `x-searchlight-signature` over `${timestamp}.${rawBody}`.
+- Response bodies are discarded, destination paths are not stored, and error messages are sanitized.
+- Missing configuration persists a `skipped` event. Invalid configuration or exhausted delivery persists `failed`; neither outcome changes the assessment's completed state.
+
 ### Evidence contract
 
 The eventual live pipeline must preserve three layers:
@@ -122,7 +134,7 @@ validate + SSRF gate
   → deterministic opportunity scoring (implemented)
   → schema-constrained Gemini synthesis (implemented)
   → report persistence
-  → non-blocking webhook delivery
+  → isolated webhook delivery (implemented)
 ```
 
 Every external stage will return evidence plus warnings. A missing optional source, such as keyword volume, should downgrade report coverage rather than fail the assessment. Critical failure is reserved for cases where meaningful analysis is impossible.

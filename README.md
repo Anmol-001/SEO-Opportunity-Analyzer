@@ -2,7 +2,7 @@
 
 Searchlight turns a focused website scan, real search-result evidence, competitor patterns, and keyword signals into a prioritized SEO opportunity report.
 
-This repository currently contains the **initial execution phase through evidence-bound AI synthesis**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, recurring-domain competitor classification, focused competitor-page comparison, evidence-backed keyword classification, weighted opportunity scoring, schema-constrained Gemini synthesis, and a protected `after()` infrastructure probe. Optional keyword metrics and webhook delivery remain later phases.
+This repository currently contains the **initial execution phase through persisted completion webhooks**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, recurring-domain competitor classification, focused competitor-page comparison, evidence-backed keyword classification, weighted opportunity scoring, schema-constrained Gemini synthesis, isolated completion-webhook delivery, and a protected `after()` infrastructure probe. Optional keyword metrics remain a later enhancement.
 
 ## Stack
 
@@ -102,6 +102,15 @@ npm run build
 - Uses a business-specific deterministic report when the Gemini key is absent, the provider fails, or the output does not pass schema and evidence-policy validation.
 - Never includes the Gemini key in the request URL or client-side code.
 
+## Completion webhook boundaries
+
+- Uses one server-configured `WEBHOOK_URL`; assessment input can never select a destination.
+- Accepts only public HTTPS destinations on the standard port, reuses the DNS/private-address guard, and refuses redirects.
+- Sends a minimal `seo_assessment.completed` payload after the report and completion state are persisted.
+- Uses a stable delivery ID and idempotency header, with at most two attempts for network, rate-limit, timeout, and server failures.
+- Persists skipped, pending, delivered, and failed outcomes in `WebhookEvent`; a webhook failure never changes a completed assessment to failed.
+- Optionally signs `${timestamp}.${rawBody}` with HMAC-SHA256 when `WEBHOOK_SECRET` is configured and sends the result in `x-searchlight-signature`.
+
 ## Manual deployment proof
 
 Deployment is intentionally left to the repository owner. Before connecting live providers:
@@ -141,8 +150,8 @@ The second response must show `status: "complete"` and a non-null `completedAt`.
 
 ## Important limitations
 
-- `fixture` mode performs and persists a real targeted website scan, live Serper research, focused competitor research, deterministic opportunity scoring, and Gemini synthesis when the corresponding server-side keys are configured. Missing or invalid AI output produces a disclosed deterministic fallback instead of unrelated fixture content.
-- `live` mode is intentionally rejected until the research pipeline is implemented.
+- `fixture` mode performs and persists a real targeted website scan, live Serper research, focused competitor research, deterministic opportunity scoring, Gemini synthesis, and completion webhook delivery when the corresponding server-side configuration is present. Missing or invalid AI output produces a disclosed deterministic fallback, while a missing webhook records a skipped delivery.
+- `live` mode remains intentionally rejected until final hardening and the owner-run production proof are complete.
 - Authentication, billing, full crawling, backlinks, analytics integrations, rank tracking, scheduled scans, and PDF export remain out of scope for the MVP.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for component boundaries, data policy, security baseline, and the planned live pipeline.

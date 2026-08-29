@@ -15,10 +15,11 @@ export function runtimeReadiness() {
       "DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD or SERPER_API_KEY",
     );
   }
+  if (!webhook) missingForLive.push("WEBHOOK_URL");
 
   return {
     readyForFixture: database,
-    readyForLive: database && ai && (dataForSeo || serper),
+    readyForLive: database && ai && (dataForSeo || serper) && webhook,
     analysisMode,
     services: {
       database,
