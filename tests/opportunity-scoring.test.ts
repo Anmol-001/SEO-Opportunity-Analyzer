@@ -5,7 +5,9 @@ import {
   rankingOpportunityScore,
   scoreSeoOpportunity,
 } from "../src/lib/scoring/opportunity-engine.ts";
-import { buildScoredFixtureReport } from "../src/lib/scoring/scored-fixture-report.ts";
+import { buildSynthesisEvidencePacket } from "../src/lib/ai/evidence-packet.ts";
+import { buildDeterministicOpportunityReport } from "../src/lib/ai/report-builder.ts";
+import type { SynthesisSource } from "../src/lib/ai/types.ts";
 
 const pages = [
   {
@@ -126,7 +128,7 @@ test("uses ranking bands without treating an unranked keyword as zero opportunit
   assert.equal(rankingOpportunityScore(null), 65);
 });
 
-test("maps scored keywords into the fixture report without inventing metrics", () => {
+test("maps scored keywords into the deterministic fallback without inventing metrics", () => {
   const scoring = scoreSeoOpportunity({
     competitors,
     industry: "Dental care",
@@ -135,11 +137,53 @@ test("maps scored keywords into the fixture report without inventing metrics", (
     pages,
     primaryService: "Dental implants",
   });
-  const report = buildScoredFixtureReport(scoring);
+  const source: SynthesisSource = {
+    businessName: "Northstar Dental",
+    competitors: competitors.map((competitor, index) => ({
+      domain: `competitor-${index + 1}.example`,
+      evidence: competitor.evidence,
+      gap: competitor.gap,
+      occurrenceCount: 4 - index,
+      positioning: null,
+      strengths: [],
+      type: competitor.type,
+    })),
+    industry: "Dental care",
+    keywords: keywords.map((keyword) => ({
+      competitorFrequency: keyword.competitorFrequency,
+      evidence: keyword.evidence,
+      intent: keyword.intent,
+      keyword: keyword.keyword,
+      paidCompetitionSignal: null,
+      rankingPosition: keyword.rankingPosition,
+      searchVolume: null,
+    })),
+    location: "Noida, India",
+    mainGoal: "Generate more qualified consultation enquiries",
+    pages: pages.map((page, index) => ({
+      h1: page.h1,
+      h2s: page.h2s,
+      pageType: page.pageType,
+      structuredData: page.structuredData,
+      title: page.title,
+      url: `https://client.example/page-${index + 1}`,
+      wordCount: page.wordCount,
+    })),
+    primaryService: "Dental implants",
+    websiteUrl: "https://client.example",
+  };
+  const packet = buildSynthesisEvidencePacket(source, scoring);
+  const report = buildDeterministicOpportunityReport({
+    packet,
+    reason: "missing_key",
+    scoring,
+    source,
+  });
 
   assert.equal(report.deterministicScoring.overallScore, 69);
   assert.equal(report.dataAvailability.keywordMetrics, false);
   assert.equal(report.dataAvailability.aiSynthesis, false);
+  assert.equal(report.synthesis.provider, "deterministic");
   assert.ok(
     report.keywordOpportunities.every(
       (keyword) =>

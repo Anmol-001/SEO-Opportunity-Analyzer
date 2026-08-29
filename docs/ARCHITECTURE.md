@@ -22,14 +22,16 @@ Landing
   → persisted Competitor strengths + gaps
   → deterministic keyword classification + priority signals
   → versioned weighted opportunity score
+  → bounded evidence packet
+  → schema-constrained Gemini synthesis or deterministic fallback
   → staged processing screen
   → persisted structured report
   → report and history screens
 ```
 
-`ANALYSIS_MODE=fixture` is an explicit incremental-delivery mode. It performs a real, bounded website scan, live Serper and competitor research, and deterministic opportunity scoring while exercising validation, persistence, background continuation, polling, report storage, and page routing. The score and keyword opportunities are calculated evidence; narrative findings and recommendations are still representative fixture data and must not be mistaken for synthesized live recommendations.
+`ANALYSIS_MODE=fixture` is an explicit incremental-delivery mode. It performs a real, bounded website scan, live Serper and competitor research, deterministic opportunity scoring, and evidence-bound Gemini synthesis while exercising validation, persistence, background continuation, polling, report storage, and page routing. When Gemini is unavailable or its output is rejected, the assessment completes with a disclosed deterministic report rather than unrelated fixture content.
 
-The application refuses `ANALYSIS_MODE=live` for now. This is intentional: real mode should only be enabled after schema-constrained Gemini synthesis has been implemented and verified.
+The application refuses `ANALYSIS_MODE=live` for now. This is intentional until the remaining completion-webhook stage and full production proof have been implemented and verified.
 
 ## Core boundaries
 
@@ -86,6 +88,17 @@ Prisma models preserve raw evidence and synthesized output separately:
 - Each keyword stores its coverage, relevance, priority, classification, component signals, and a deterministic rationale.
 - Provider metrics remain optional: unavailable volume, CPC, and paid-competition values stay null and are explicitly disclosed in the report contract.
 
+### AI synthesis
+
+- The synthesis packet is bounded to five website observations, eight SERP/query observations, five direct competitors, and the versioned score components.
+- Scanned titles and headings are treated as untrusted data inside the prompt; they cannot change the system instruction.
+- Gemini returns only interpretations, selected evidence IDs, recommendations, and execution steps through a constrained JSON schema.
+- Zod validates the structural response. A second policy pass validates evidence existence, uniqueness, recommendation references, and unsupported claims.
+- Displayed evidence statements and all provider/deterministic values are assembled by application code rather than copied from model prose.
+- Provider calls use a constant server-side origin, API-key header, validated model name, timeout, output-token cap, and streamed response-size limit.
+- Missing configuration, provider errors, malformed output, and policy violations are isolated as warnings and produce a conservative deterministic fallback.
+- Persisted report schema version `1.1` records whether synthesis used Gemini or the fallback and identifies the model when applicable.
+
 ### Evidence contract
 
 The eventual live pipeline must preserve three layers:
@@ -107,7 +120,7 @@ validate + SSRF gate
   → recurring competitor classification
   → keyword metrics (optional, never invented)
   → deterministic opportunity scoring (implemented)
-  → schema-constrained Gemini synthesis
+  → schema-constrained Gemini synthesis (implemented)
   → report persistence
   → non-blocking webhook delivery
 ```

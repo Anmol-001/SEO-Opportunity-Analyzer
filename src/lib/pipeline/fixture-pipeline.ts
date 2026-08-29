@@ -13,7 +13,7 @@ import {
   persistCompetitorDiscoveryFailure,
 } from "@/lib/competitors/persist-competitors";
 import { scoreAndPersistSubmission } from "@/lib/scoring/persist-scoring";
-import { buildScoredFixtureReport } from "@/lib/scoring/scored-fixture-report";
+import { synthesizeSubmissionReport } from "@/lib/ai/synthesize-report";
 
 function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -108,23 +108,26 @@ export async function runFixturePipeline(submissionId: string) {
       where: { id: submissionId },
       data: {
         status: "generating",
-        progressMessage: `Opportunity score calculated: ${scoring.overallScore}/100`,
+        progressMessage: `Score ${scoring.overallScore}/100 calculated; synthesizing evidence-linked recommendations`,
       },
     });
     await delay(350);
 
-    const reportPayload = buildScoredFixtureReport(scoring);
+    const synthesis = await synthesizeSubmissionReport(submissionId, scoring);
+    const reportPayload = synthesis.report;
 
     await db.$transaction([
       db.report.upsert({
         where: { submissionId },
         create: {
           submissionId,
+          schemaVersion: "1.1",
           opportunityScore: scoring.overallScore,
           executiveSummary: reportPayload.executiveSummary.overallAssessment,
           payload: reportPayload as unknown as Prisma.InputJsonValue,
         },
         update: {
+          schemaVersion: "1.1",
           opportunityScore: scoring.overallScore,
           executiveSummary: reportPayload.executiveSummary.overallAssessment,
           payload: reportPayload as unknown as Prisma.InputJsonValue,

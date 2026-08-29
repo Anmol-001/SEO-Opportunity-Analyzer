@@ -2,7 +2,7 @@
 
 Searchlight turns a focused website scan, real search-result evidence, competitor patterns, and keyword signals into a prioritized SEO opportunity report.
 
-This repository currently contains the **initial execution phase through deterministic opportunity scoring**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, recurring-domain competitor classification, focused competitor-page comparison, evidence-backed keyword classification, weighted opportunity scoring, and a protected `after()` infrastructure probe. Optional keyword metrics, Gemini synthesis, and webhook delivery remain later phases.
+This repository currently contains the **initial execution phase through evidence-bound AI synthesis**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated assessment flow, staged background processing, persistent report contract, history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, recurring-domain competitor classification, focused competitor-page comparison, evidence-backed keyword classification, weighted opportunity scoring, schema-constrained Gemini synthesis, and a protected `after()` infrastructure probe. Optional keyword metrics and webhook delivery remain later phases.
 
 ## Stack
 
@@ -10,6 +10,7 @@ This repository currently contains the **initial execution phase through determi
 - shadcn-style local UI primitives
 - Zod input validation
 - PostgreSQL on Neon through Prisma ORM
+- Google Gemini structured JSON generation with deterministic fallback
 - Next.js `after()` for the infrastructure proof and initial fixture pipeline
 
 ## Local setup
@@ -92,6 +93,15 @@ npm run build
 - Persists component signals and rationales so the calculation remains auditable and repeatable.
 - Leaves search volume, CPC, and paid-competition values null when the configured provider does not supply them.
 
+## AI synthesis boundaries
+
+- Sends Gemini a bounded packet containing business context, code-generated evidence statements, stable evidence IDs, and deterministic score components.
+- Uses Gemini structured JSON mode and validates the response with Zod before report assembly.
+- Keeps factual evidence, rankings, competitor fields, keyword metrics, classifications, and the opportunity score code-controlled.
+- Rejects unknown or duplicate evidence references and narrative promises, percentages, currency forecasts, or guaranteed outcomes.
+- Uses a business-specific deterministic report when the Gemini key is absent, the provider fails, or the output does not pass schema and evidence-policy validation.
+- Never includes the Gemini key in the request URL or client-side code.
+
 ## Manual deployment proof
 
 Deployment is intentionally left to the repository owner. Before connecting live providers:
@@ -131,7 +141,7 @@ The second response must show `status: "complete"` and a non-null `completedAt`.
 
 ## Important limitations
 
-- `fixture` mode performs and persists a real targeted website scan, live Serper research, focused competitor research, and deterministic opportunity scoring when `SERPER_API_KEY` is configured. The keyword table and score are evidence-backed, while narrative findings and recommendations remain representative fixture content until Gemini synthesis is implemented.
+- `fixture` mode performs and persists a real targeted website scan, live Serper research, focused competitor research, deterministic opportunity scoring, and Gemini synthesis when the corresponding server-side keys are configured. Missing or invalid AI output produces a disclosed deterministic fallback instead of unrelated fixture content.
 - `live` mode is intentionally rejected until the research pipeline is implemented.
 - Authentication, billing, full crawling, backlinks, analytics integrations, rank tracking, scheduled scans, and PDF export remain out of scope for the MVP.
 
