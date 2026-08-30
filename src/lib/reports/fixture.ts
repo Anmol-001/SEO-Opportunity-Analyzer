@@ -9,7 +9,7 @@ export const demoReport: OpportunityReport = {
   },
   websiteFindings: [
     {
-      id: "F001",
+      id: "W001",
       title: "Primary service page lacks local depth",
       severity: "high",
       evidence:
@@ -18,7 +18,7 @@ export const demoReport: OpportunityReport = {
         "The page provides fewer relevance signals for commercial service + location searches.",
     },
     {
-      id: "F002",
+      id: "W002",
       title: "FAQ coverage is missing",
       severity: "medium",
       evidence:
@@ -29,7 +29,7 @@ export const demoReport: OpportunityReport = {
   ],
   serpFindings: [
     {
-      id: "F003",
+      id: "S001",
       keyword: "dental implants noida",
       intent: "Local commercial",
       serpCharacteristics: ["Local pack", "People also ask", "Ads"],
@@ -38,7 +38,7 @@ export const demoReport: OpportunityReport = {
         "The submitted domain appears at organic position 8. The result set also contains a local pack and cost-related questions.",
     },
     {
-      id: "F004",
+      id: "S002",
       keyword: "dental implant cost noida",
       intent: "Pricing commercial",
       serpCharacteristics: ["People also ask", "Featured snippet"],
@@ -49,7 +49,7 @@ export const demoReport: OpportunityReport = {
   ],
   competitorFindings: [
     {
-      id: "F005",
+      id: "C001",
       domain: "smilecraft.example",
       type: "Direct competitor",
       positioning: "Implant-led clinic with strong local proof",
@@ -58,7 +58,7 @@ export const demoReport: OpportunityReport = {
       evidence: "Appeared in four of five commercial query result sets.",
     },
     {
-      id: "F006",
+      id: "C002",
       domain: "carepoint.example",
       type: "Direct competitor",
       positioning: "Treatment education and recovery guidance",
@@ -118,7 +118,7 @@ export const demoReport: OpportunityReport = {
       priority: "high",
       impact: "Strengthens the page already ranking on page one for the core query.",
       effort: "medium",
-      evidenceRefs: ["F001", "F003", "F005"],
+      evidenceRefs: ["W001", "S001", "C001"],
     },
     {
       id: "R002",
@@ -127,7 +127,7 @@ export const demoReport: OpportunityReport = {
       priority: "high",
       impact: "Creates relevant coverage for a high-intent query where the site is not visible.",
       effort: "low",
-      evidenceRefs: ["F002", "F004", "F005"],
+      evidenceRefs: ["W002", "S002", "C001"],
     },
     {
       id: "R003",
@@ -136,7 +136,7 @@ export const demoReport: OpportunityReport = {
       priority: "medium",
       impact: "Builds topical depth around a question competitors currently answer better.",
       effort: "medium",
-      evidenceRefs: ["F002", "F006"],
+      evidenceRefs: ["W002", "C002"],
     },
   ],
   nextSteps: {

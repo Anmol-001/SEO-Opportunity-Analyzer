@@ -1,12 +1,15 @@
 import {
+  AlertCircle,
   ArrowRight,
   BarChart3,
   CheckCircle2,
   CircleGauge,
   ExternalLink,
   Flag,
+  Link2,
   Search,
   Target,
+  UsersRound,
 } from "lucide-react";
 
 import type { OpportunityReport } from "@/lib/reports/types";
@@ -49,6 +52,22 @@ export function ReportView({
   score: number;
   report: OpportunityReport;
 }) {
+  const availabilityItems = [
+    ["Website research", report.dataAvailability.website],
+    ["Search results", report.dataAvailability.serp],
+    ["Keyword metrics", report.dataAvailability.keywordMetrics],
+    ["AI synthesis", report.dataAvailability.aiSynthesis],
+  ] as const;
+
+  const reportSections = [
+    ["Website", "website-findings"],
+    ["Search landscape", "serp-findings"],
+    ["Competitors", "competitor-findings"],
+    ["Keywords", "keyword-opportunities"],
+    ["Recommendations", "recommendations"],
+    ["Roadmap", "roadmap"],
+  ] as const;
+
   return (
     <div className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
       <section className="rounded-3xl bg-ink p-6 text-white shadow-[0_28px_70px_-45px_rgba(15,23,42,0.65)] sm:p-9 lg:grid lg:grid-cols-[1fr_auto] lg:items-end lg:gap-12">
@@ -100,48 +119,181 @@ export function ReportView({
           <CircleGauge className="size-6 text-emerald-700" aria-hidden="true" />
           <h2 className="mt-4 font-semibold text-ink">Evidence coverage</h2>
           <div className="mt-5 space-y-3 text-sm">
-            {Object.entries(report.dataAvailability)
-              .filter(([key]) => key !== "notes")
-              .map(([key, available]) => (
-                <div key={key} className="flex items-center justify-between gap-3">
-                  <span className="capitalize text-slate-600">{key.replace(/([A-Z])/g, " $1")}</span>
-                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-800">
+            {availabilityItems.map(([label, available]) => (
+              <div key={label} className="flex items-center justify-between gap-3">
+                <span className="text-slate-600">{label}</span>
+                <span
+                  className={`inline-flex items-center gap-1 font-semibold ${
+                    available ? "text-emerald-800" : "text-amber-800"
+                  }`}
+                >
+                  {available ? (
                     <CheckCircle2 className="size-4" aria-hidden="true" />
-                    {available ? "Available" : "Unavailable"}
-                  </span>
-                </div>
-              ))}
+                  ) : (
+                    <AlertCircle className="size-4" aria-hidden="true" />
+                  )}
+                  {available ? "Available" : "Unavailable"}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="mt-10">
-        <SectionHeading
-          icon={Search}
-          eyebrow="What we found"
-          title="Website & search findings"
-          description="Direct observations are separated from their likely business impact."
-        />
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          {report.websiteFindings.map((finding) => (
-            <article key={finding.id} className="rounded-2xl border border-slate-200 bg-white p-6">
-              <div className="flex items-center justify-between gap-4">
-                <span className="font-mono text-xs font-bold text-emerald-700">{finding.id}</span>
-                <span className={`rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${priorityStyles[finding.severity]}`}>
-                  {finding.severity}
-                </span>
-              </div>
-              <h3 className="mt-4 text-lg font-semibold tracking-tight text-ink">{finding.title}</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-600">{finding.evidence}</p>
-              <div className="mt-4 border-l-2 border-emerald-300 pl-3 text-sm leading-6 text-slate-700">
-                <strong className="text-ink">Why it matters:</strong> {finding.impact}
-              </div>
-            </article>
+      <nav
+        aria-label="Report sections"
+        className="mt-6 rounded-2xl border border-slate-200 bg-white px-5 py-4"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-2 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+            Jump to
+          </span>
+          {reportSections.map(([label, id]) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              {label}
+            </a>
           ))}
         </div>
+      </nav>
+
+      <section id="website-findings" className="mt-10 scroll-mt-24">
+        <SectionHeading
+          icon={Search}
+          eyebrow="Website research"
+          title="Website findings"
+          description="Direct observations are separated from their likely business impact."
+        />
+        {report.websiteFindings.length ? (
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {report.websiteFindings.map((finding) => (
+              <article
+                id={finding.id}
+                key={finding.id}
+                className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 target:border-emerald-400 target:ring-4 target:ring-emerald-100"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span className="font-mono text-xs font-bold text-emerald-700">{finding.id}</span>
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${priorityStyles[finding.severity]}`}>
+                    {finding.severity}
+                  </span>
+                </div>
+                <h3 className="mt-4 text-lg font-semibold tracking-tight text-ink">{finding.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{finding.evidence}</p>
+                <div className="mt-4 border-l-2 border-emerald-300 pl-3 text-sm leading-6 text-slate-700">
+                  <strong className="text-ink">Why it matters:</strong> {finding.impact}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyEvidence message="No website findings were produced for this assessment." />
+        )}
       </section>
 
-      <section className="mt-12">
+      <section id="serp-findings" className="mt-12 scroll-mt-24">
+        <SectionHeading
+          icon={Search}
+          eyebrow="SERP analysis"
+          title="Search landscape findings"
+          description="Intent, ranking position, and visible result features show where the business can compete."
+        />
+        {report.serpFindings.length ? (
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {report.serpFindings.map((finding) => (
+              <article
+                id={finding.id}
+                key={finding.id}
+                className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 target:border-emerald-400 target:ring-4 target:ring-emerald-100"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="font-mono text-xs font-bold text-emerald-700">{finding.id}</span>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-700">
+                    {finding.rankingPosition ? `Rank #${finding.rankingPosition}` : "Not found"}
+                  </span>
+                </div>
+                <h3 className="mt-4 text-lg font-semibold tracking-tight text-ink">{finding.keyword}</h3>
+                <p className="mt-1 text-sm font-medium text-emerald-800">{finding.intent}</p>
+                {finding.serpCharacteristics.length ? (
+                  <ul
+                    aria-label={`SERP characteristics for ${finding.keyword}`}
+                    className="mt-4 flex flex-wrap gap-2"
+                  >
+                    {finding.serpCharacteristics.map((characteristic) => (
+                      <li
+                        key={characteristic}
+                        className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800"
+                      >
+                        {characteristic}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                  <strong className="text-ink">Observed evidence:</strong> {finding.evidence}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyEvidence message="No search-result findings were available for this assessment." />
+        )}
+      </section>
+
+      <section id="competitor-findings" className="mt-12 scroll-mt-24">
+        <SectionHeading
+          icon={UsersRound}
+          eyebrow="Competitor analysis"
+          title="Competitor evidence"
+          description="Recurring search competitors reveal positioning strengths and specific content gaps."
+        />
+        {report.competitorFindings.length ? (
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {report.competitorFindings.map((finding) => (
+              <article
+                id={finding.id}
+                key={finding.id}
+                className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 target:border-emerald-400 target:ring-4 target:ring-emerald-100"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="font-mono text-xs font-bold text-emerald-700">{finding.id}</span>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-700">
+                    {finding.type}
+                  </span>
+                </div>
+                <h3 className="mt-4 break-words text-lg font-semibold tracking-tight text-ink">{finding.domain}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{finding.positioning}</p>
+                {finding.strengths.length ? (
+                  <div className="mt-5">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Observed strengths</p>
+                    <ul className="mt-3 space-y-2">
+                      {finding.strengths.map((strength) => (
+                        <li key={strength} className="flex gap-2 text-sm leading-6 text-slate-700">
+                          <CheckCircle2 className="mt-1 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                          {strength}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                <div className="mt-5 border-l-2 border-amber-300 pl-3 text-sm leading-6 text-slate-700">
+                  <strong className="text-ink">Opportunity gap:</strong> {finding.gap}
+                </div>
+                <p className="mt-4 text-xs leading-5 text-slate-500">
+                  <strong className="text-slate-700">Evidence:</strong> {finding.evidence}
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyEvidence message="No recurring competitors were identified in the collected results." />
+        )}
+      </section>
+
+      <section id="keyword-opportunities" className="mt-12 scroll-mt-24">
         <SectionHeading
           icon={BarChart3}
           eyebrow="Search visibility"
@@ -205,7 +357,7 @@ export function ReportView({
         </p>
       </section>
 
-      <section className="mt-12">
+      <section id="recommendations" className="mt-12 scroll-mt-24">
         <SectionHeading
           icon={Target}
           eyebrow="Priority actions"
@@ -227,9 +379,20 @@ export function ReportView({
                 </div>
                 <h3 className="mt-3 font-semibold leading-6 text-ink">{recommendation.action}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{recommendation.impact}</p>
-                <p className="mt-3 text-xs text-slate-500">
-                  Evidence: {recommendation.evidenceRefs.join(" · ")}
-                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <span>Evidence:</span>
+                  {recommendation.evidenceRefs.map((evidenceId) => (
+                    <a
+                      key={evidenceId}
+                      href={`#${evidenceId}`}
+                      aria-label={`View evidence ${evidenceId}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 font-mono font-bold text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2"
+                    >
+                      {evidenceId}
+                      <Link2 className="size-3" aria-hidden="true" />
+                    </a>
+                  ))}
+                </div>
               </div>
               <div className="rounded-xl bg-slate-50 px-3 py-2 text-center">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Effort</p>
@@ -240,7 +403,7 @@ export function ReportView({
         </div>
       </section>
 
-      <section className="mt-12">
+      <section id="roadmap" className="mt-12 scroll-mt-24">
         <SectionHeading
           icon={Flag}
           eyebrow="Execution roadmap"
@@ -272,6 +435,18 @@ export function ReportView({
       <div className="mt-10 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-6 text-amber-900">
         <strong>Data note:</strong> {report.dataAvailability.notes.join(" ")}
       </div>
+    </div>
+  );
+}
+
+function EmptyEvidence({ message }: { message: string }) {
+  return (
+    <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-sm leading-6 text-slate-600">
+      <span className="inline-flex items-center gap-2 font-semibold text-slate-700">
+        <AlertCircle className="size-4" aria-hidden="true" />
+        Data unavailable
+      </span>
+      <p className="mt-2">{message}</p>
     </div>
   );
 }
