@@ -12,16 +12,19 @@ import { JsonBodyError, readBoundedJson } from "@/lib/security/json-body";
 import { assertSafePublicUrl } from "@/lib/security/public-url";
 import {
   requestFingerprint,
-  retryAfterSeconds,
   SUBMISSION_LIMIT,
-  SUBMISSION_WINDOW_MS,
 } from "@/lib/security/rate-limit";
+import {
+  admitSubmission,
+  SubmissionAdmissionUnavailableError,
+} from "@/lib/security/submission-admission";
 import {
   assessmentInputSchema,
   normalizedDomain,
 } from "@/lib/validation/assessment";
 
 export const maxDuration = 300;
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const readiness = runtimeReadiness();
@@ -103,51 +106,55 @@ export async function POST(request: NextRequest) {
     process.env.RATE_LIMIT_SALT ?? "searchlight-local-development-only",
   );
 
-  if (fingerprint) {
-    const now = new Date();
-    const windowStart = new Date(now.getTime() - SUBMISSION_WINDOW_MS);
-    const recent = await db.submission.findMany({
-      where: {
-        requestFingerprint: fingerprint,
-        createdAt: { gte: windowStart },
-      },
-      orderBy: { createdAt: "asc" },
-      take: SUBMISSION_LIMIT,
-      select: { createdAt: true },
-    });
-
-    if (recent.length >= SUBMISSION_LIMIT) {
-      const retryAfter = retryAfterSeconds(recent[0].createdAt, now);
-      return NextResponse.json(
-        { error: "Too many assessments. Try again in a few minutes." },
-        {
-          status: 429,
-          headers: {
-            "Cache-Control": "no-store",
-            "Retry-After": String(retryAfter),
-            "X-RateLimit-Limit": String(SUBMISSION_LIMIT),
-            "X-RateLimit-Remaining": "0",
-          },
+  let admission: Awaited<ReturnType<typeof admitSubmission>>;
+  try {
+    admission = await admitSubmission(
+      {
+        data: {
+          businessName: parsed.data.businessName,
+          websiteUrl: parsed.data.websiteUrl,
+          normalizedDomain: normalizedDomain(parsed.data.websiteUrl),
+          industry: parsed.data.industry,
+          location: parsed.data.location,
+          primaryService: parsed.data.primaryService,
+          mainGoal: parsed.data.mainGoal,
+          targetKeywords: parsed.data.targetKeywords,
+          requestFingerprint: fingerprint,
+          progressMessage: "Assessment received",
         },
+        fingerprint,
+      },
+      { db },
+    );
+  } catch (error) {
+    if (error instanceof SubmissionAdmissionUnavailableError) {
+      return NextResponse.json(
+        {
+          error: "Assessment capacity is busy. Please try again shortly.",
+          code: "ADMISSION_UNAVAILABLE",
+        },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
       );
     }
+    throw error;
   }
 
-  const submission = await db.submission.create({
-    data: {
-      businessName: parsed.data.businessName,
-      websiteUrl: parsed.data.websiteUrl,
-      normalizedDomain: normalizedDomain(parsed.data.websiteUrl),
-      industry: parsed.data.industry,
-      location: parsed.data.location,
-      primaryService: parsed.data.primaryService,
-      mainGoal: parsed.data.mainGoal,
-      targetKeywords: parsed.data.targetKeywords,
-      requestFingerprint: fingerprint,
-      progressMessage: "Assessment received",
-    },
-    select: { id: true, status: true },
-  });
+  if (admission.kind === "limited") {
+    return NextResponse.json(
+      { error: "Too many assessments. Try again in a few minutes." },
+      {
+        status: 429,
+        headers: {
+          "Cache-Control": "no-store",
+          "Retry-After": String(admission.retryAfter),
+          "X-RateLimit-Limit": String(SUBMISSION_LIMIT),
+          "X-RateLimit-Remaining": "0",
+        },
+      },
+    );
+  }
+
+  const submission = admission.submission;
 
   after(async () => {
     await runAnalysisPipeline(submission.id);

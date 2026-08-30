@@ -26,6 +26,9 @@ test("validates a public HTTPS webhook and rejects unsafe destinations", async (
   );
   assert.equal(destination.host, "webhook.example");
   assert.equal(destination.url.hash, "");
+  assert.deepEqual(destination.addresses, [
+    { address: "93.184.216.34", family: 4 },
+  ]);
 
   await assert.rejects(
     validateWebhookDestination("http://webhook.example/receive", publicResolver),
@@ -47,11 +50,13 @@ test("sends a signed completion payload without following redirects", async () =
   let requestBody = "";
   let requestHeaders = new Headers();
   let redirectMode: RequestRedirect | undefined;
+  let pinnedAddresses: string[] = [];
   const timestamp = "2026-08-30T12:01:00.000Z";
   const result = await sendCompletionWebhookAttempt(
     {
       deliveryId: "delivery-1",
       destination: {
+        addresses: [{ address: "93.184.216.34", family: 4 }],
         host: "webhook.example",
         url: new URL("https://webhook.example/receive"),
       },
@@ -60,10 +65,12 @@ test("sends a signed completion payload without following redirects", async () =
     },
     {
       now: () => new Date(timestamp),
-      fetchImpl: async (_input, init) => {
+      fetchImpl: async (_input, init, resolvedTarget) => {
         requestBody = String(init?.body);
         requestHeaders = new Headers(init?.headers);
         redirectMode = init?.redirect;
+        pinnedAddresses =
+          resolvedTarget?.addresses.map((address) => address.address) ?? [];
         return new Response(null, { status: 204 });
       },
     },
@@ -72,6 +79,7 @@ test("sends a signed completion payload without following redirects", async () =
   assert.equal(result.ok, true);
   assert.equal(result.responseStatus, 204);
   assert.equal(redirectMode, "manual");
+  assert.deepEqual(pinnedAddresses, ["93.184.216.34"]);
   assert.deepEqual(JSON.parse(requestBody), payload);
   assert.equal(requestHeaders.get("x-searchlight-event"), payload.event);
   assert.equal(requestHeaders.get("x-searchlight-delivery"), "delivery-1");
@@ -87,6 +95,7 @@ test("sends a signed completion payload without following redirects", async () =
 
 test("treats redirects as terminal failures and network errors as retryable", async () => {
   const destination = {
+    addresses: [{ address: "93.184.216.34", family: 4 }] as const,
     host: "webhook.example",
     url: new URL("https://webhook.example/receive"),
   };

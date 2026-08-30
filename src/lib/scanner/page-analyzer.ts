@@ -16,6 +16,7 @@ const trackingParameters = [
   "ref",
   "source",
 ];
+export const MAX_DISCOVERED_URL_LENGTH = 2_048;
 
 export function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, " ").trim();
@@ -26,6 +27,7 @@ function normalizedDomain(hostname: string) {
 }
 
 export function normalizeDiscoveredUrl(value: string, baseUrl: URL) {
+  if (value.length > MAX_DISCOVERED_URL_LENGTH) return null;
   try {
     const url = new URL(value, baseUrl);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
@@ -40,7 +42,8 @@ export function normalizeDiscoveredUrl(value: string, baseUrl: URL) {
     }
 
     if (url.pathname !== "/") url.pathname = url.pathname.replace(/\/+$/, "");
-    return url.toString();
+    const normalized = url.toString();
+    return normalized.length <= MAX_DISCOVERED_URL_LENGTH ? normalized : null;
   } catch {
     return null;
   }

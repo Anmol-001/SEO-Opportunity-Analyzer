@@ -1,12 +1,15 @@
+import { openPinnedResponse, type PinnedResponse } from "../security/pinned-http.ts";
 import {
-  assertSafePublicUrl,
   resolveHostname,
+  resolveSafePublicUrl,
   type HostResolver,
+  type ResolvedPublicUrl,
 } from "../security/public-url.ts";
 
 export type FetchLike = (
   input: string | URL,
   init?: RequestInit,
+  resolvedTarget?: ResolvedPublicUrl,
 ) => Promise<Response>;
 
 export interface SafeFetchOptions {
@@ -59,9 +62,36 @@ const redirectStatuses = new Set([301, 302, 303, 307, 308]);
 const defaultUserAgent =
   "SearchlightBot/0.1 (+https://searchlight.local; focused SEO research scan)";
 
-async function readLimitedBody(response: Response, maxBytes: number, targetUrl: string) {
+async function readChunk(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  signal: AbortSignal,
+) {
+  if (signal.aborted) {
+    await reader.cancel().catch(() => undefined);
+    throw signal.reason instanceof Error ? signal.reason : new Error("Request aborted.");
+  }
+
+  return new Promise<ReadableStreamReadResult<Uint8Array>>((resolve, reject) => {
+    const onAbort = () => {
+      void reader.cancel().catch(() => undefined);
+      reject(signal.reason instanceof Error ? signal.reason : new Error("Request aborted."));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    reader.read().then(resolve, reject).finally(() => {
+      signal.removeEventListener("abort", onAbort);
+    });
+  });
+}
+
+async function readLimitedBody(
+  response: Response,
+  maxBytes: number,
+  targetUrl: string,
+  signal: AbortSignal,
+) {
   const declaredLength = Number(response.headers.get("content-length"));
   if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    await response.body?.cancel().catch(() => undefined);
     throw new ScanFetchError(
       `Response exceeded the ${maxBytes.toLocaleString()} byte limit.`,
       "CONTENT_TOO_LARGE",
@@ -75,26 +105,31 @@ async function readLimitedBody(response: Response, maxBytes: number, targetUrl: 
   const decoder = new TextDecoder();
   let received = 0;
   let body = "";
+  let completed = false;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    received += value.byteLength;
+  try {
+    while (true) {
+      const { done, value } = await readChunk(reader, signal);
+      if (done) break;
+      received += value.byteLength;
 
-    if (received > maxBytes) {
-      await reader.cancel();
-      throw new ScanFetchError(
-        `Response exceeded the ${maxBytes.toLocaleString()} byte limit.`,
-        "CONTENT_TOO_LARGE",
-        targetUrl,
-      );
+      if (received > maxBytes) {
+        throw new ScanFetchError(
+          `Response exceeded the ${maxBytes.toLocaleString()} byte limit.`,
+          "CONTENT_TOO_LARGE",
+          targetUrl,
+        );
+      }
+
+      body += decoder.decode(value, { stream: true });
     }
 
-    body += decoder.decode(value, { stream: true });
+    body += decoder.decode();
+    completed = true;
+    return body;
+  } finally {
+    if (!completed) await reader.cancel().catch(() => undefined);
   }
-
-  body += decoder.decode();
-  return body;
 }
 
 function assertAcceptedContentType(
@@ -121,7 +156,6 @@ export async function safeFetchText(
   initialUrl: string | URL,
   options: SafeFetchOptions = {},
 ): Promise<SafeFetchResult> {
-  const fetchImpl = options.fetchImpl ?? fetch;
   const resolver = options.resolver ?? resolveHostname;
   const maxBytes = options.maxBytes ?? 2_000_000;
   const maxRedirects = options.maxRedirects ?? 5;
@@ -131,7 +165,8 @@ export async function safeFetchText(
   let currentUrl = new URL(initialUrl);
 
   for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
-    currentUrl = await assertSafePublicUrl(currentUrl, resolver);
+    const resolvedTarget = await resolveSafePublicUrl(currentUrl, resolver);
+    currentUrl = resolvedTarget.url;
     const normalized = currentUrl.toString();
     if (seen.has(normalized)) {
       throw new ScanFetchError(
@@ -144,10 +179,10 @@ export async function safeFetchText(
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    let response: Response;
+    let pinnedResponse: PinnedResponse | undefined;
 
     try {
-      response = await fetchImpl(currentUrl, {
+      const init: RequestInit = {
         cache: "no-store",
         headers: {
           Accept: "text/html,application/xhtml+xml,application/xml,text/xml,text/plain;q=0.9,*/*;q=0.1",
@@ -155,8 +190,72 @@ export async function safeFetchText(
         },
         redirect: "manual",
         signal: controller.signal,
-      });
+      };
+      const response = options.fetchImpl
+        ? await options.fetchImpl(currentUrl, init, resolvedTarget)
+        : (pinnedResponse = await openPinnedResponse(
+            currentUrl,
+            init,
+            resolvedTarget.addresses,
+          )).response;
+
+      if (redirectStatuses.has(response.status)) {
+        const location = response.headers.get("location");
+        await response.body?.cancel().catch(() => undefined);
+        if (!location) {
+          return {
+            body: "",
+            contentType: response.headers.get("content-type"),
+            finalUrl: currentUrl,
+            headers: response.headers,
+            redirects,
+            status: response.status,
+          };
+        }
+
+        if (redirectCount === maxRedirects) {
+          throw new ScanFetchError(
+            `Website exceeded the ${maxRedirects} redirect limit.`,
+            "REDIRECT_LIMIT",
+            normalized,
+          );
+        }
+
+        const nextUrl = new URL(location, currentUrl);
+        nextUrl.hash = "";
+        redirects.push(nextUrl.toString());
+        currentUrl = nextUrl;
+        continue;
+      }
+
+      const contentType = response.headers.get("content-type");
+      try {
+        assertAcceptedContentType(
+          contentType,
+          options.acceptedContentTypes,
+          normalized,
+        );
+      } catch (error) {
+        await response.body?.cancel().catch(() => undefined);
+        throw error;
+      }
+      const body = await readLimitedBody(
+        response,
+        maxBytes,
+        normalized,
+        controller.signal,
+      );
+
+      return {
+        body,
+        contentType,
+        finalUrl: currentUrl,
+        headers: response.headers,
+        redirects,
+        status: response.status,
+      };
     } catch (error) {
+      if (error instanceof ScanFetchError) throw error;
       if (controller.signal.aborted) {
         throw new ScanFetchError(
           `Website request timed out after ${timeoutMs}ms.`,
@@ -166,54 +265,16 @@ export async function safeFetchText(
       }
 
       throw new ScanFetchError(
-        error instanceof Error ? `Website request failed: ${error.message}` : "Website request failed.",
+        error instanceof Error
+          ? `Website request failed: ${error.message}`
+          : "Website request failed.",
         "NETWORK_ERROR",
         normalized,
       );
     } finally {
+      await pinnedResponse?.dispose().catch(() => undefined);
       clearTimeout(timeout);
     }
-
-    if (redirectStatuses.has(response.status)) {
-      const location = response.headers.get("location");
-      if (!location) {
-        return {
-          body: "",
-          contentType: response.headers.get("content-type"),
-          finalUrl: currentUrl,
-          headers: response.headers,
-          redirects,
-          status: response.status,
-        };
-      }
-
-      if (redirectCount === maxRedirects) {
-        throw new ScanFetchError(
-          `Website exceeded the ${maxRedirects} redirect limit.`,
-          "REDIRECT_LIMIT",
-          normalized,
-        );
-      }
-
-      const nextUrl = new URL(location, currentUrl);
-      nextUrl.hash = "";
-      redirects.push(nextUrl.toString());
-      currentUrl = nextUrl;
-      continue;
-    }
-
-    const contentType = response.headers.get("content-type");
-    assertAcceptedContentType(contentType, options.acceptedContentTypes, normalized);
-    const body = await readLimitedBody(response, maxBytes, normalized);
-
-    return {
-      body,
-      contentType,
-      finalUrl: currentUrl,
-      headers: response.headers,
-      redirects,
-      status: response.status,
-    };
   }
 
   throw new ScanFetchError(

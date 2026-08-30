@@ -5,6 +5,10 @@ import {
   assessmentInputSchema,
   normalizedDomain,
 } from "../src/lib/validation/assessment.ts";
+import {
+  clearFieldError,
+  isAssessmentFieldName,
+} from "../src/lib/validation/form-errors.ts";
 
 const validInput = {
   businessName: "Northstar Dental",
@@ -53,4 +57,21 @@ test("rejects a non-public hostname and an underspecified goal", () => {
   });
 
   assert.equal(result.success, false);
+});
+
+test("clears only the edited field's stale validation error", () => {
+  const errors = {
+    businessName: ["Enter a business name."],
+    websiteUrl: ["Enter a valid website."],
+  };
+  const next = clearFieldError(errors, "websiteUrl");
+
+  assert.deepEqual(next, { businessName: ["Enter a business name."] });
+  assert.deepEqual(errors, {
+    businessName: ["Enter a business name."],
+    websiteUrl: ["Enter a valid website."],
+  });
+  assert.equal(clearFieldError(next, "websiteUrl"), next);
+  assert.equal(isAssessmentFieldName("mainGoal"), true);
+  assert.equal(isAssessmentFieldName("unknown"), false);
 });

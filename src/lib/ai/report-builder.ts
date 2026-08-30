@@ -158,10 +158,17 @@ export function buildAiOpportunityReport(input: {
   return finalizeReport(report);
 }
 
+function humanizedPageType(value: string) {
+  const normalized = value.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!normalized) return "Page";
+  return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1).toLowerCase()}`;
+}
+
 function fallbackWebsiteInterpretation(item: WebsiteEvidenceItem) {
+  const page = humanizedPageType(item.pageType);
   if (!item.titlePresent || !item.h1Present) {
     return {
-      title: "Core page metadata or heading is incomplete",
+      title: `${page} is missing core metadata or its primary heading`,
       severity: "high" as const,
       impact:
         "Missing primary page signals can make the page topic less explicit to search engines and visitors.",
@@ -169,7 +176,7 @@ function fallbackWebsiteInterpretation(item: WebsiteEvidenceItem) {
   }
   if (item.wordCount !== null && item.wordCount < 300) {
     return {
-      title: "The analyzed page has limited content depth",
+      title: `${page} has limited content depth`,
       severity: "medium" as const,
       impact:
         "Limited page depth leaves less room to answer decision-stage questions and demonstrate service relevance.",
@@ -177,18 +184,33 @@ function fallbackWebsiteInterpretation(item: WebsiteEvidenceItem) {
   }
   if (!item.structuredDataPresent) {
     return {
-      title: "No structured data was detected on the analyzed page",
+      title: `${page} has no detected structured data`,
       severity: "medium" as const,
       impact:
         "Relevant structured data may help search engines interpret eligible page entities and content more clearly.",
     };
   }
   return {
-    title: "The analyzed page provides a usable content foundation",
+    title: `${page} provides a usable content foundation`,
     severity: "low" as const,
     impact:
       "Existing page signals provide a base that can be refined around the highest-priority search opportunities.",
   };
+}
+
+function fallbackWebsiteInterpretations(items: WebsiteEvidenceItem[]) {
+  const seenTitles = new Set<string>();
+  return items.map((item) => {
+    const interpretation = fallbackWebsiteInterpretation(item);
+    if (!seenTitles.has(interpretation.title)) {
+      seenTitles.add(interpretation.title);
+      return interpretation;
+    }
+
+    const title = `${interpretation.title} (${item.id})`;
+    seenTitles.add(title);
+    return { ...interpretation, title };
+  });
 }
 
 function fallbackSerpSelection(
@@ -270,6 +292,7 @@ export function buildDeterministicOpportunityReport(input: {
   source: SynthesisSource;
 }) {
   const website = input.packet.website.slice(0, 3);
+  const websiteInterpretations = fallbackWebsiteInterpretations(website);
   const serp = fallbackSerpSelection(input.packet, input.scoring);
   const competitors = input.packet.competitors.slice(0, 3);
   const recommendations = fallbackRecommendations({
@@ -297,8 +320,8 @@ export function buildDeterministicOpportunityReport(input: {
         recommendations[0]?.impact ??
         "Evidence coverage is currently too limited for specific growth conclusions; improve data coverage before prioritizing expansion work.",
     },
-    websiteFindings: website.map((item) =>
-      websiteFinding(item, fallbackWebsiteInterpretation(item)),
+    websiteFindings: website.map((item, index) =>
+      websiteFinding(item, websiteInterpretations[index]),
     ),
     serpFindings: serp.map(serpFinding),
     competitorFindings: competitors.map(competitorFinding),

@@ -130,6 +130,7 @@ test("requests schema-constrained Gemini output without exposing the key in the 
     | undefined;
   assert.equal(generationConfig?.responseMimeType, "application/json");
   assert.equal(typeof generationConfig?.responseJsonSchema, "object");
+  assert.equal(generationConfig?.temperature, 0);
 });
 
 test("rejects malformed Gemini output and sanitizes provider failures", async () => {
@@ -152,4 +153,47 @@ test("rejects malformed Gemini output and sanitizes provider failures", async ()
       new Response('{"message":"private provider detail"}', { status: 429 }),
   });
   await assert.rejects(failed.synthesize(packet), /failed with status 429/);
+});
+
+test("softens absolute model wording before evidence-policy validation", async () => {
+  const absoluteOutput: AiSynthesisOutput = {
+    ...output,
+    executiveSummary: {
+      overallAssessment: "This will improve topical clarity.",
+      businessImplication: "The change ensures search engines can identify the subject.",
+    },
+    recommendations: [
+      {
+        ...output.recommendations[0],
+        action: "Ensure the service page answers the observed query.",
+        impact: "This guarantees stronger topical alignment.",
+      },
+    ],
+  };
+  const provider = new GeminiProvider("test-key", "gemini-3.5-flash", {
+    fetchImpl: async () =>
+      new Response(
+        JSON.stringify({
+          candidates: [
+            { content: { parts: [{ text: JSON.stringify(absoluteOutput) }] } },
+          ],
+        }),
+        { status: 200 },
+      ),
+  });
+
+  const normalized = await provider.synthesize(packet);
+  assert.equal(normalized.executiveSummary.overallAssessment, "This may improve topical clarity.");
+  assert.equal(
+    normalized.executiveSummary.businessImplication,
+    "The change can help search engines identify the subject.",
+  );
+  assert.equal(
+    normalized.recommendations[0].action,
+    "Verify the service page answers the observed query.",
+  );
+  assert.equal(
+    normalized.recommendations[0].impact,
+    "This can support stronger topical alignment.",
+  );
 });

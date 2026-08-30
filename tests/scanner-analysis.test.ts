@@ -7,6 +7,7 @@ import {
 } from "../src/lib/scanner/discovery.ts";
 import { analyzeHtmlPage } from "../src/lib/scanner/page-analyzer.ts";
 import {
+  MAX_ROBOTS_RULES,
   isPathAllowedByRobots,
   parseRobotsTxt,
 } from "../src/lib/scanner/robots.ts";
@@ -67,6 +68,57 @@ Sitemap: https://example.com/sitemap.xml
   assert.equal(
     isPathAllowedByRobots(new URL("https://example.com/private/public/info"), parsed.rules),
     true,
+  );
+});
+
+test("matches bounded robots wildcards without treating metacharacters as regex", () => {
+  const rules = parseRobotsTxt(`
+User-agent: *
+Disallow: /search?query=*
+Allow: /search?query=public$
+Disallow: /literal.+(test)
+Disallow: /downloads/**/private$
+  `).rules;
+
+  assert.equal(
+    isPathAllowedByRobots(new URL("https://example.com/search?query=secret"), rules),
+    false,
+  );
+  assert.equal(
+    isPathAllowedByRobots(new URL("https://example.com/search?query=public"), rules),
+    true,
+  );
+  assert.equal(
+    isPathAllowedByRobots(new URL("https://example.com/literal.+(test)"), rules),
+    false,
+  );
+  assert.equal(
+    isPathAllowedByRobots(new URL("https://example.com/downloads/a/b/private"), rules),
+    false,
+  );
+  assert.equal(
+    isPathAllowedByRobots(new URL("https://example.com/downloads/a/b/private/more"), rules),
+    true,
+  );
+});
+
+test("caps hostile robots rules and handles long wildcard input deterministically", () => {
+  const body = [
+    "User-agent: *",
+    ...Array.from({ length: MAX_ROBOTS_RULES + 50 }, (_, index) =>
+      `Disallow: /blocked-${index}`,
+    ),
+    `Disallow: /${"*segment".repeat(100)}`,
+  ].join("\n");
+  const parsed = parseRobotsTxt(body);
+
+  assert.equal(parsed.rules.length, MAX_ROBOTS_RULES);
+  assert.equal(
+    isPathAllowedByRobots(
+      new URL(`https://example.com/${"a".repeat(3_000)}`),
+      parsed.rules,
+    ),
+    false,
   );
 });
 

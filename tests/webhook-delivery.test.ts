@@ -41,6 +41,7 @@ function memoryStore(existingDelivered = false) {
 }
 
 const validatedDestination = {
+  addresses: [{ address: "93.184.216.34", family: 4 }] as const,
   host: "webhook.example",
   url: new URL("https://webhook.example/receive"),
 };

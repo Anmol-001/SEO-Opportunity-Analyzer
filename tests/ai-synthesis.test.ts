@@ -196,3 +196,44 @@ test("builds a business-specific deterministic fallback when Gemini is unavailab
     ),
   );
 });
+
+test("gives repeated deterministic website findings unique page-specific titles", () => {
+  const repeatedSource: SynthesisSource = {
+    ...source,
+    pages: Array.from({ length: 3 }, (_, index) => ({
+      ...source.pages[0],
+      pageType: "service",
+      url: `https://example.com/service-${index + 1}`,
+      wordCount: 180,
+    })),
+  };
+  const repeatedPacket = buildSynthesisEvidencePacket(repeatedSource, scoring);
+  const report = buildDeterministicOpportunityReport({
+    packet: repeatedPacket,
+    reason: "provider_failure",
+    scoring,
+    source: repeatedSource,
+  });
+  const titles = report.websiteFindings.map((item) => item.title);
+
+  assert.equal(new Set(titles).size, 3);
+  assert.ok(titles.every((title) => title.startsWith("Service has limited content depth")));
+  assert.deepEqual(
+    report.websiteFindings.map((item) => item.id),
+    ["W001", "W002", "W003"],
+  );
+  assert.deepEqual(
+    report.websiteFindings.map((item) => item.evidence),
+    repeatedPacket.website.map((item) => item.evidence),
+  );
+  const validEvidenceIds = new Set([
+    ...report.websiteFindings.map((item) => item.id),
+    ...report.serpFindings.map((item) => item.id),
+    ...report.competitorFindings.map((item) => item.id),
+  ]);
+  assert.ok(
+    report.recommendations.every((recommendation) =>
+      recommendation.evidenceRefs.every((id) => validEvidenceIds.has(id)),
+    ),
+  );
+});

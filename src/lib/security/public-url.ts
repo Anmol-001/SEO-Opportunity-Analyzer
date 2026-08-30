@@ -1,9 +1,21 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
+import ipaddr from "ipaddr.js";
+
 export interface ResolvedAddress {
   address: string;
   family: number;
+}
+
+export interface ValidatedAddress {
+  address: string;
+  family: 4 | 6;
+}
+
+export interface ResolvedPublicUrl {
+  addresses: readonly ValidatedAddress[];
+  url: URL;
 }
 
 export type HostResolver = (hostname: string) => Promise<readonly ResolvedAddress[]>;
@@ -17,65 +29,47 @@ const blockedHostnames = new Set([
   "::1",
 ]);
 
-function isPrivateIpv4(address: string) {
-  const octets = address.split(".").map(Number);
-  if (
-    octets.length !== 4 ||
-    octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)
-  ) {
-    return false;
+function addressLiteral(hostname: string) {
+  const normalized = hostname.toLowerCase().replace(/\.$/, "");
+  const candidate =
+    normalized.startsWith("[") && normalized.endsWith("]")
+      ? normalized.slice(1, -1)
+      : normalized;
+
+  if (candidate.includes("%")) {
+    throw new Error("IP address zone identifiers are not allowed.");
   }
 
-  const [a, b, c] = octets;
-  return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
-    (a === 100 && b >= 64 && b <= 127) ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 0 && c === 0) ||
-    (a === 192 && b === 0 && c === 2) ||
-    (a === 192 && b === 88 && c === 99) ||
-    (a === 192 && b === 168) ||
-    (a === 198 && (b === 18 || b === 19)) ||
-    (a === 198 && b === 51 && c === 100) ||
-    (a === 203 && b === 0 && c === 113) ||
-    a >= 224
-  );
+  return isIP(candidate) ? candidate : null;
 }
 
-function mappedIpv4(address: string) {
-  const normalized = address.toLowerCase();
-  if (!normalized.startsWith("::ffff:")) return null;
-  const candidate = normalized.slice("::ffff:".length);
-  return isIP(candidate) === 4 ? candidate : null;
-}
-
-function isPrivateIpv6(address: string) {
-  const normalized = address.toLowerCase().split("%")[0];
-  const mapped = mappedIpv4(normalized);
-  if (mapped) return isPrivateIpv4(mapped);
-
-  return (
-    normalized === "::" ||
-    normalized === "::1" ||
-    normalized.startsWith("fc") ||
-    normalized.startsWith("fd") ||
-    /^fe[89ab]/.test(normalized) ||
-    normalized.startsWith("ff") ||
-    normalized.startsWith("2001:db8:") ||
-    normalized === "2001:db8::"
-  );
-}
-
-function assertPublicAddress(address: string, family: number) {
-  if (
-    (family === 4 && isPrivateIpv4(address)) ||
-    (family === 6 && isPrivateIpv6(address))
-  ) {
+function validatedPublicAddress(address: string): ValidatedAddress {
+  if (address.includes("%")) {
     throw new Error("The website resolves to a private or reserved network.");
   }
+
+  const family = isIP(address);
+  if (family !== 4 && family !== 6) {
+    throw new Error("The website hostname returned an invalid address.");
+  }
+
+  let parsed: ReturnType<typeof ipaddr.process>;
+  try {
+    parsed = ipaddr.process(address);
+  } catch {
+    throw new Error("The website hostname returned an invalid address.");
+  }
+
+  const isAllocatedGlobalIpv6 =
+    parsed.kind() !== "ipv6" || (parsed.toByteArray()[0] & 0xe0) === 0x20;
+  if (parsed.range() !== "unicast" || !isAllocatedGlobalIpv6) {
+    throw new Error("The website resolves to a private or reserved network.");
+  }
+
+  return {
+    address: parsed.toString(),
+    family: parsed.kind() === "ipv4" ? 4 : 6,
+  };
 }
 
 export function assertSafeHostname(hostname: string) {
@@ -92,8 +86,8 @@ export function assertSafeHostname(hostname: string) {
     throw new Error("The website must use a public hostname.");
   }
 
-  const ipVersion = isIP(normalized);
-  if (ipVersion) assertPublicAddress(normalized, ipVersion);
+  const literal = addressLiteral(normalized);
+  if (literal) validatedPublicAddress(literal);
 }
 
 export function assertSafeUrlShape(url: URL) {
@@ -118,22 +112,37 @@ export function assertSafeUrlShape(url: URL) {
 export const resolveHostname: HostResolver = async (hostname) =>
   lookup(hostname, { all: true, verbatim: true });
 
+export async function resolveSafePublicUrl(
+  value: string | URL,
+  resolver: HostResolver = resolveHostname,
+): Promise<ResolvedPublicUrl> {
+  const url = new URL(value);
+  assertSafeUrlShape(url);
+
+  const literal = addressLiteral(url.hostname);
+  const resolved = literal
+    ? [{ address: literal, family: isIP(literal) }]
+    : await resolver(url.hostname);
+  if (resolved.length === 0) {
+    throw new Error("The website hostname did not resolve.");
+  }
+
+  const addresses = new Map<string, ValidatedAddress>();
+  for (const answer of resolved) {
+    const validated = validatedPublicAddress(answer.address);
+    addresses.set(`${validated.family}:${validated.address}`, validated);
+  }
+
+  url.hash = "";
+  return {
+    addresses: Object.freeze([...addresses.values()]),
+    url,
+  };
+}
+
 export async function assertSafePublicUrl(
   value: string | URL,
   resolver: HostResolver = resolveHostname,
 ) {
-  const url = value instanceof URL ? new URL(value) : new URL(value);
-  assertSafeUrlShape(url);
-
-  const addresses = await resolver(url.hostname);
-  if (addresses.length === 0) {
-    throw new Error("The website hostname did not resolve.");
-  }
-
-  for (const { address, family } of addresses) {
-    assertPublicAddress(address, family);
-  }
-
-  url.hash = "";
-  return url;
+  return (await resolveSafePublicUrl(value, resolver)).url;
 }

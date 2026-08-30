@@ -10,17 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { assessmentInputSchema } from "@/lib/validation/assessment";
-
-type FieldName =
-  | "businessName"
-  | "websiteUrl"
-  | "industry"
-  | "location"
-  | "primaryService"
-  | "mainGoal"
-  | "targetKeywords";
-
-type FieldErrors = Partial<Record<FieldName, string[]>>;
+import {
+  clearFieldError,
+  isAssessmentFieldName,
+  type AssessmentFieldErrors,
+  type AssessmentFieldName,
+} from "@/lib/validation/form-errors";
 
 function Field({
   name,
@@ -29,7 +24,7 @@ function Field({
   error,
   children,
 }: {
-  name: FieldName;
+  name: AssessmentFieldName;
   label: string;
   hint?: string;
   error?: string;
@@ -54,7 +49,7 @@ function Field({
 export function AssessmentForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useState<AssessmentFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -67,7 +62,9 @@ export function AssessmentForm() {
     const parsed = assessmentInputSchema.safeParse(candidate);
 
     if (!parsed.success) {
-      setFieldErrors(parsed.error.flatten().fieldErrors as FieldErrors);
+      setFieldErrors(
+        parsed.error.flatten().fieldErrors as AssessmentFieldErrors,
+      );
       return;
     }
 
@@ -81,7 +78,9 @@ export function AssessmentForm() {
       const result = await response.json();
 
       if (!response.ok) {
-        setFieldErrors((result.fieldErrors ?? {}) as FieldErrors);
+        setFieldErrors(
+          (result.fieldErrors ?? {}) as AssessmentFieldErrors,
+        );
         setFormError(
           result.error ?? "The assessment could not be started. Please try again.",
         );
@@ -96,8 +95,20 @@ export function AssessmentForm() {
     }
   }
 
+  function handleFieldChange(event: React.FormEvent<HTMLFormElement>) {
+    const name = (event.target as HTMLInputElement | HTMLTextAreaElement).name;
+    if (!isAssessmentFieldName(name)) return;
+    setFieldErrors((current) => clearFieldError(current, name));
+    setFormError(null);
+  }
+
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+    <form
+      onChange={handleFieldChange}
+      onSubmit={handleSubmit}
+      noValidate
+      className="space-y-6"
+    >
       <div className="grid gap-6 sm:grid-cols-2">
         <Field
           name="businessName"
