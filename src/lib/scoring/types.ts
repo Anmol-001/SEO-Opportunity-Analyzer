@@ -18,8 +18,10 @@ export interface ScoringKeywordEvidence {
   evidence: unknown;
   intent: string | null;
   keyword: string;
+  paidCompetitionSignal: number | null;
   rankingPosition: number | null;
   rankingUrl: string | null;
+  searchVolume: number | null;
 }
 
 export interface ScoringCompetitorEvidence {
@@ -43,6 +45,7 @@ export interface ScoredKeywordOpportunity {
     businessRelevance: number;
     competitorEvidence: number;
     contentGap: number;
+    demandOpportunity: number | null;
     intentValue: number;
     rankingOpportunity: number;
   };
@@ -62,12 +65,12 @@ export interface OpportunityScoringResult {
   coverage: {
     analyzedCompetitors: number;
     directCompetitors: number;
-    keywordMetricsAvailable: false;
+    keywordMetricsAvailable: boolean;
     keywords: number;
     serpQueriesAvailable: number;
     websitePages: number;
   };
-  formulaVersion: "1.0";
+  formulaVersion: "1.1";
   keywords: ScoredKeywordOpportunity[];
   overallScore: number;
   weights: {

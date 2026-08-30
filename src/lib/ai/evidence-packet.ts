@@ -87,6 +87,12 @@ export function buildSynthesisEvidencePacket(
         ranking,
         `${keyword.competitorFrequency} direct competitor${keyword.competitorFrequency === 1 ? "" : "s"} observed`,
         features.length ? `SERP features: ${features.join(", ")}` : "no normalized SERP features recorded",
+        keyword.searchVolume === null
+          ? "average monthly search volume unavailable"
+          : `approximately ${keyword.searchVolume.toLocaleString("en-US")} average monthly searches`,
+        keyword.paidCompetitionSignal === null
+          ? "paid-competition signal unavailable"
+          : `paid-competition signal ${Math.round(keyword.paidCompetitionSignal * 100)}/100 (advertising data, not SEO difficulty)`,
         score ? `deterministic priority ${score.priorityScore}/100 (${score.priority})` : "priority unavailable",
       ].join("; ");
       return {
@@ -96,7 +102,9 @@ export function buildSynthesisEvidencePacket(
         id: `S${String(index + 1).padStart(3, "0")}`,
         intent: boundedText(keyword.intent ?? "unknown", 80) || "unknown",
         keyword: boundedText(keyword.keyword, 160),
+        paidCompetitionSignal: keyword.paidCompetitionSignal,
         rankingPosition: keyword.rankingPosition,
+        searchVolume: keyword.searchVolume,
       };
     });
 

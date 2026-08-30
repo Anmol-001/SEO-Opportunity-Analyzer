@@ -35,7 +35,9 @@ const packet: SynthesisEvidencePacket = {
       id: "S001",
       intent: "commercial",
       keyword: "seo opportunity tool",
+      paidCompetitionSignal: null,
       rankingPosition: null,
+      searchVolume: null,
     },
   ],
   competitors: [
@@ -57,7 +59,7 @@ const packet: SynthesisEvidencePacket = {
       serpOpportunity: 55,
       websiteReadiness: 40,
     },
-    formulaVersion: "1.0",
+    formulaVersion: "1.1",
     overallScore: 60,
     weights: {
       competitiveGaps: 0.15,

@@ -69,7 +69,13 @@ export const demoReport: OpportunityReport = {
   ],
   keywordOpportunities: [
     {
+      cpc: 38.5,
       keyword: "dental implants noida",
+      monthlyTrend: [
+        { month: "2026-05", volume: 320 },
+        { month: "2026-06", volume: 350 },
+        { month: "2026-07", volume: 390 },
+      ],
       searchVolume: 390,
       paidCompetitionSignal: 0.74,
       rankingPosition: 8,
@@ -78,7 +84,13 @@ export const demoReport: OpportunityReport = {
       rationale: "Existing first-page visibility makes page improvement the fastest path.",
     },
     {
+      cpc: 31.2,
       keyword: "dental implant cost noida",
+      monthlyTrend: [
+        { month: "2026-05", volume: 170 },
+        { month: "2026-06", volume: 190 },
+        { month: "2026-07", volume: 210 },
+      ],
       searchVolume: 210,
       paidCompetitionSignal: 0.66,
       rankingPosition: null,
@@ -87,7 +99,9 @@ export const demoReport: OpportunityReport = {
       rationale: "Strong decision-stage intent, repeated competitor coverage, and no current visibility.",
     },
     {
+      cpc: null,
       keyword: "dental implant recovery",
+      monthlyTrend: null,
       searchVolume: null,
       paidCompetitionSignal: null,
       rankingPosition: null,

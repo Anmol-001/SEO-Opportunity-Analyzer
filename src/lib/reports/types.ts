@@ -31,7 +31,9 @@ export interface OpportunityReport {
     evidence: string;
   }>;
   keywordOpportunities: Array<{
+    cpc: number | null;
     keyword: string;
+    monthlyTrend: Array<{ month: string; volume: number }> | null;
     searchVolume: number | null;
     paidCompetitionSignal: number | null;
     rankingPosition: number | null;

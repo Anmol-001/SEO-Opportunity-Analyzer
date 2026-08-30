@@ -62,7 +62,6 @@ export async function researchAndPersistSubmission(
   const warnings = mergeWarnings(
     normalizeWarnings(submission.warnings),
     landscape.warnings,
-    ["Search-volume data unavailable from Serper."],
   );
   const keywordRows: Prisma.KeywordCreateManyInput[] = [];
   const serpRows: Prisma.SerpResultCreateManyInput[] = [];

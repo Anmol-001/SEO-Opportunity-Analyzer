@@ -19,6 +19,23 @@ function mergeWarnings(...groups: string[][]) {
   return [...new Set(groups.flat().map((warning) => warning.slice(0, 500)))];
 }
 
+function normalizeMonthlyTrend(value: unknown) {
+  if (!Array.isArray(value)) return null;
+  const trend = value.flatMap((item) => {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) return [];
+    const month = (item as { month?: unknown }).month;
+    const volume = (item as { volume?: unknown }).volume;
+    return typeof month === "string" &&
+      /^\d{4}-(0[1-9]|1[0-2])$/.test(month) &&
+      typeof volume === "number" &&
+      Number.isInteger(volume) &&
+      volume >= 0
+      ? [{ month, volume }]
+      : [];
+  });
+  return trend.length > 0 ? trend.slice(-24) : null;
+}
+
 async function persistSynthesisWarning(submissionId: string, warning: string) {
   const db = getDb();
   const submission = await db.submission.findUnique({
@@ -71,10 +88,12 @@ export async function synthesizeSubmissionReport(
       keywords: {
         orderBy: { keyword: "asc" },
         select: {
+          cpc: true,
           competitorFrequency: true,
           evidence: true,
           intent: true,
           keyword: true,
+          monthlyTrend: true,
           paidCompetitionSignal: true,
           rankingPosition: true,
           searchVolume: true,
@@ -103,7 +122,11 @@ export async function synthesizeSubmissionReport(
       type: competitor.type,
     })),
     industry: submission.industry,
-    keywords: submission.keywords,
+    keywords: submission.keywords.map((keyword) => ({
+      ...keyword,
+      cpc: keyword.cpc === null ? null : Number(keyword.cpc),
+      monthlyTrend: normalizeMonthlyTrend(keyword.monthlyTrend),
+    })),
     location: submission.location,
     mainGoal: submission.mainGoal,
     pages: submission.siteScan?.pages ?? [],

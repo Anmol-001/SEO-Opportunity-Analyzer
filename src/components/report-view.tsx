@@ -17,6 +17,23 @@ const priorityStyles = {
   low: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
+function compactNumber(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    notation: value >= 1_000 ? "compact" : "standard",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function trendSummary(
+  trend: Array<{ month: string; volume: number }> | null,
+) {
+  if (!trend?.length) return null;
+  return trend
+    .slice(-3)
+    .map(({ month, volume }) => `${month.slice(5)}: ${compactNumber(volume)}`)
+    .join(" · ");
+}
+
 export function ReportView({
   businessName,
   websiteUrl,
@@ -133,11 +150,13 @@ export function ReportView({
         />
         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-[980px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-500">
                 <tr>
                   <th className="px-5 py-4 font-bold">Keyword</th>
                   <th className="px-5 py-4 font-bold">Volume</th>
+                  <th className="px-5 py-4 font-bold">Avg. CPC</th>
+                  <th className="px-5 py-4 font-bold">Paid competition</th>
                   <th className="px-5 py-4 font-bold">Rank</th>
                   <th className="px-5 py-4 font-bold">Type</th>
                   <th className="px-5 py-4 font-bold">Priority</th>
@@ -151,7 +170,20 @@ export function ReportView({
                       <p className="mt-1 max-w-md text-xs leading-5 text-slate-500">{keyword.rationale}</p>
                     </td>
                     <td className="px-5 py-4 font-mono text-slate-700">
-                      {keyword.searchVolume?.toLocaleString("en-IN") ?? "Unavailable"}
+                      <p>{keyword.searchVolume?.toLocaleString("en-IN") ?? "Unavailable"}</p>
+                      {trendSummary(keyword.monthlyTrend) ? (
+                        <p className="mt-1 whitespace-nowrap text-[11px] text-slate-400">
+                          {trendSummary(keyword.monthlyTrend)}
+                        </p>
+                      ) : null}
+                    </td>
+                    <td className="px-5 py-4 font-mono text-slate-700">
+                      {keyword.cpc === null ? "Unavailable" : keyword.cpc.toFixed(2)}
+                    </td>
+                    <td className="px-5 py-4 font-mono text-slate-700">
+                      {keyword.paidCompetitionSignal === null
+                        ? "Unavailable"
+                        : `${Math.round(keyword.paidCompetitionSignal * 100)}/100`}
                     </td>
                     <td className="px-5 py-4 font-mono text-slate-700">
                       {keyword.rankingPosition ? `#${keyword.rankingPosition}` : "Not found"}
@@ -169,7 +201,7 @@ export function ReportView({
           </div>
         </div>
         <p className="mt-3 text-xs text-slate-500">
-          Paid competition signals, when available, are advertising data and are not presented as SEO difficulty.
+          Average CPC is shown in the connected Google Ads account currency. Paid competition is advertising data and is not presented as SEO difficulty.
         </p>
       </section>
 

@@ -58,7 +58,19 @@ export const opportunityReportSchema = z
       .array(
         z
           .object({
+            cpc: z.number().nonnegative().nullable(),
             keyword: z.string().trim().min(1).max(160),
+            monthlyTrend: z
+              .array(
+                z
+                  .object({
+                    month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+                    volume: z.number().int().nonnegative(),
+                  })
+                  .strict(),
+              )
+              .max(24)
+              .nullable(),
             searchVolume: z.number().int().nonnegative().nullable(),
             paidCompetitionSignal: z.number().min(0).max(1).nullable(),
             rankingPosition: z.number().int().positive().nullable(),

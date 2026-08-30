@@ -23,6 +23,15 @@ export interface KeywordMetric {
   monthlyTrend: Array<{ month: string; volume: number }> | null;
 }
 
+export interface KeywordMetricsProvider {
+  readonly name: "dataforseo" | "google-ads";
+  getKeywordMetrics(input: {
+    keywords: string[];
+    location: SearchLocation;
+  }): Promise<KeywordMetric[]>;
+  getLocations(query: string): Promise<SearchLocation[]>;
+}
+
 export interface SearchLocation {
   id: string;
   name: string;

@@ -2,7 +2,7 @@
 
 Searchlight turns a focused website scan, real search-result evidence, competitor patterns, and keyword signals into a prioritized SEO opportunity report.
 
-This repository contains the **complete locally validated MVP pipeline**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated and throttled assessment flow, staged background processing, browser-scoped history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, recurring-domain competitor classification, focused competitor-page comparison, evidence-backed keyword classification, weighted opportunity scoring, schema-constrained Gemini synthesis, isolated completion-webhook delivery, and a protected `after()` infrastructure probe. Optional keyword metrics remain a later enhancement.
+This repository contains the **complete locally validated MVP pipeline**: a production-shaped Next.js application, PostgreSQL/Prisma schema, validated and throttled assessment flow, staged background processing, browser-scoped history, redirect-safe website scanning, robots/sitemap discovery, focused page extraction, deterministic query discovery, localized Serper searches, submitted-domain ranking detection, recurring-domain competitor classification, focused competitor-page comparison, free Google Ads API keyword metrics, evidence-backed keyword classification, demand-aware opportunity scoring, schema-constrained Gemini synthesis, isolated completion-webhook delivery, and a protected `after()` infrastructure probe.
 
 ## Stack
 
@@ -28,6 +28,8 @@ This repository contains the **complete locally validated MVP pipeline**: a prod
    ```
 
 3. Set `DATABASE_URL` to a Neon PostgreSQL connection string. Use `ANALYSIS_MODE="fixture"` while integrations are intentionally incomplete; use `live` only after `/api/health` reports the selected mode as ready.
+
+   Google Ads credentials are server-only. Local development can use a test manager and test client; production requires an Explorer or Basic developer-token access level and a production customer account. Keep all IDs free of hyphens.
 
 4. Generate the Prisma client and apply the committed migration:
 
@@ -59,7 +61,7 @@ npm run build
 
 - `POST /api/analyze` accepts only bounded `application/json` request bodies and rejects malformed or oversized input before provider work begins.
 - Submission throttling hashes the closest valid proxy address with `RATE_LIMIT_SALT`; production and live readiness require at least 32 non-placeholder characters.
-- `ANALYSIS_MODE=live` runs the real scanner, Serper, competitor, scoring, Gemini, persistence, and webhook pipeline only when all required integrations, the trusted public origin, throttling salt, and any enabled smoke-test token are valid.
+- `ANALYSIS_MODE=live` runs the real scanner, Serper, Google Ads metrics, competitor, scoring, Gemini, persistence, and webhook pipeline only when all required integrations, the trusted public origin, throttling salt, and any enabled smoke-test token are valid.
 - `/api/health` is mode-aware and returns `503` when the selected mode is not ready.
 - Assessment history stores only a bounded list of opaque assessment IDs in an HTTP-only, same-site browser cookie. It never lists other visitors' database records; direct report links remain intentionally shareable.
 - All routes receive a content security policy, frame protection, MIME sniffing protection, a strict referrer policy, and a minimal permissions policy. Production responses also receive HSTS; assessment, history, and API responses are private, non-cacheable, and excluded from search indexing.
@@ -82,7 +84,16 @@ npm run build
 - Stores normalized organic results, related searches, and detected SERP features in `SerpResult`.
 - Detects exact-domain and subdomain visibility and stores the actual ranking URL/position on `Keyword`.
 - Isolates individual query failures and continues with successful evidence.
-- Explicitly records that search-volume, CPC, and paid-competition data are unavailable from Serper.
+- Keeps Serper focused on organic results and SERP characteristics; it never fabricates search volume.
+
+## Keyword metrics boundaries
+
+- Uses the free Google Ads API `GenerateKeywordHistoricalMetrics` method for the same deterministic query set used by SERP research.
+- Resolves the submitted business location through `GeoTargetConstantService.SuggestGeoTargetConstants` and targets Google Search in English.
+- Exchanges the refresh token only on the server, caches the short-lived access token per provider instance, and never exposes OAuth or developer credentials to the browser.
+- Uses one bounded metrics request for at most eight keywords per assessment and applies timeouts, response-size limits, sanitized errors, and no-store fetch semantics.
+- Persists approximate average monthly searches, average CPC in the connected account currency, a normalized paid-competition signal, and up to 24 monthly volume observations.
+- Treats paid competition as advertising evidence, never as organic SEO difficulty. Missing metrics remain null and downgrade coverage without failing the assessment.
 
 ## Competitor research boundaries
 
@@ -97,10 +108,11 @@ npm run build
 ## Opportunity scoring boundaries
 
 - Classifies each deterministic query as an existing or potential opportunity from observed ranking and submitted-page coverage.
-- Assigns stable finding IDs and calculates keyword priority from business relevance, ranking opportunity, content gap, direct-competitor recurrence, and intent.
+- Assigns stable finding IDs and calculates a base keyword priority from business relevance, ranking opportunity, content gap, direct-competitor recurrence, and intent.
+- When search volume is available, blends 15% relative log-scaled demand into the base priority; paid competition is disclosed but never used as SEO difficulty.
 - Calculates the overall score with versioned weights: website readiness 20%, keyword opportunity 25%, current-ranking opportunity 20%, SERP opportunity 20%, and competitive gaps 15%.
 - Persists component signals and rationales so the calculation remains auditable and repeatable.
-- Leaves search volume, CPC, and paid-competition values null when the configured provider does not supply them.
+- Leaves search volume, CPC, paid competition, and monthly trends null when Google Ads does not return them.
 
 ## AI synthesis boundaries
 

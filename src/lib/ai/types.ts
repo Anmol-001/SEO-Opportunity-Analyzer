@@ -18,7 +18,9 @@ export interface SerpEvidenceItem {
   id: string;
   intent: string;
   keyword: string;
+  paidCompetitionSignal: number | null;
   rankingPosition: number | null;
+  searchVolume: number | null;
 }
 
 export interface CompetitorEvidenceItem {
@@ -62,10 +64,12 @@ export interface SynthesisSource {
   }>;
   industry: string;
   keywords: Array<{
+    cpc: number | null;
     competitorFrequency: number;
     evidence: unknown;
     intent: string | null;
     keyword: string;
+    monthlyTrend: Array<{ month: string; volume: number }> | null;
     paidCompetitionSignal: number | null;
     rankingPosition: number | null;
     searchVolume: number | null;

@@ -42,8 +42,10 @@ const keywords = [
     },
     intent: "commercial",
     keyword: "dental implants noida",
+    paidCompetitionSignal: null,
     rankingPosition: 8,
     rankingUrl: "https://client.example/implants",
+    searchVolume: null,
   },
   {
     cluster: "pricing",
@@ -51,8 +53,10 @@ const keywords = [
     evidence: { status: "available", serpFeatures: ["people_also_ask"] },
     intent: "transactional",
     keyword: "dental implant cost noida",
+    paidCompetitionSignal: null,
     rankingPosition: null,
     rankingUrl: null,
+    searchVolume: null,
   },
   {
     cluster: "informational",
@@ -60,8 +64,10 @@ const keywords = [
     evidence: { status: "available", serpFeatures: [] },
     intent: "informational",
     keyword: "dental implant recovery",
+    paidCompetitionSignal: null,
     rankingPosition: null,
     rankingUrl: null,
+    searchVolume: null,
   },
 ];
 
@@ -81,7 +87,7 @@ test("calculates deterministic keyword and weighted opportunity scores", () => {
     primaryService: "Dental implants",
   });
 
-  assert.equal(result.formulaVersion, "1.0");
+  assert.equal(result.formulaVersion, "1.1");
   assert.equal(result.overallScore, 69);
   assert.deepEqual(result.components, {
     competitiveGaps: 65,
@@ -150,10 +156,12 @@ test("maps scored keywords into the deterministic fallback without inventing met
     })),
     industry: "Dental care",
     keywords: keywords.map((keyword) => ({
+      cpc: null,
       competitorFrequency: keyword.competitorFrequency,
       evidence: keyword.evidence,
       intent: keyword.intent,
       keyword: keyword.keyword,
+      monthlyTrend: null,
       paidCompetitionSignal: null,
       rankingPosition: keyword.rankingPosition,
       searchVolume: null,
@@ -190,4 +198,28 @@ test("maps scored keywords into the deterministic fallback without inventing met
         keyword.searchVolume === null && keyword.paidCompetitionSignal === null,
     ),
   );
+});
+
+test("uses relative search demand without treating paid competition as SEO difficulty", () => {
+  const withMetrics = keywords.map((keyword, index) => ({
+    ...keyword,
+    searchVolume: [1_000, 100, 10][index],
+    paidCompetitionSignal: [0.9, 0.5, 0.1][index],
+  }));
+  const result = scoreSeoOpportunity({
+    competitors,
+    industry: "Dental care",
+    keywords: withMetrics,
+    location: "Noida, India",
+    pages,
+    primaryService: "Dental implants",
+  });
+
+  assert.equal(result.coverage.keywordMetricsAvailable, true);
+  const core = result.keywords.find(
+    (keyword) => keyword.keyword === "dental implants noida",
+  );
+  assert.equal(core?.signals.demandOpportunity, 100);
+  assert.match(core?.rationale ?? "", /1,000 average monthly searches/);
+  assert.match(core?.rationale ?? "", /not SEO difficulty/);
 });

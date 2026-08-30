@@ -20,6 +20,8 @@ Landing
   → recurring-domain competitor classification
   → up to five robots-aware competitor page checks
   → persisted Competitor strengths + gaps
+  → Google Ads geo-target resolution
+  → persisted search volume, CPC, paid competition + monthly trends
   → deterministic keyword classification + priority signals
   → versioned weighted opportunity score
   → bounded evidence packet
@@ -32,7 +34,7 @@ Landing
 
 `ANALYSIS_MODE=fixture` is an explicit partial-configuration mode. It performs the same real, bounded website scan, live Serper and competitor research, deterministic opportunity scoring, and evidence-bound Gemini synthesis while allowing optional integrations to be absent. When Gemini is unavailable or its output is rejected, the assessment completes with a disclosed deterministic report rather than unrelated fixture content.
 
-`ANALYSIS_MODE=live` uses the same pipeline but is rejected unless the database, Gemini, a SERP provider, webhook, trusted public origin, rate-limit salt, and any enabled smoke-test token pass runtime readiness. The only remaining release gate is the owner-run production proof.
+`ANALYSIS_MODE=live` uses the same pipeline but is rejected unless the database, Gemini, Serper, the complete Google Ads credential set, webhook, trusted public origin, rate-limit salt, and any enabled smoke-test token pass runtime readiness. The only remaining release gate is the owner-run production proof.
 
 ## Core boundaries
 
@@ -58,7 +60,9 @@ Prisma models preserve raw evidence and synthesized output separately:
 
 ### Provider abstraction
 
-`src/lib/providers/seo-provider.ts` defines the internal SEO provider contract. The Serper adapter now implements localized SERP behavior and returns an explicit unavailable result for keyword metrics. DataForSEO remains the planned implementation for search volume, CPC, paid competition, and monthly trends. No provider is allowed to fabricate search volume.
+`src/lib/providers/seo-provider.ts` separates the SERP and keyword-metrics capabilities. Serper implements localized SERP behavior. The Google Ads adapter implements geo-target resolution and historical keyword metrics through OAuth without pretending to provide SERP rankings. No provider is allowed to fabricate search volume.
+
+The Google Ads adapter is pinned to a validated API version, accepts an optional version override for controlled migrations, reuses one access token across location and metric requests, retries one expired access token, and returns a normalized metric row for every requested keyword. Near-exact variants returned by Google are mapped back to the submitted deterministic query set.
 
 ### Query and SERP research
 
@@ -84,10 +88,10 @@ Prisma models preserve raw evidence and synthesized output separately:
 
 - Keyword finding IDs are stable for the same alphabetically normalized query set (`K001`, `K002`, and so on).
 - Existing opportunities require a submitted-domain ranking or strong relevant on-site coverage; the remaining queries are potential opportunities.
-- Per-keyword priority combines business relevance (30%), ranking opportunity (25%), content gap (20%), direct-competitor evidence (15%), and intent (10%).
+- Per-keyword base priority combines business relevance (30%), ranking opportunity (25%), content gap (20%), direct-competitor evidence (15%), and intent (10%). When volume is available, version `1.1` blends 85% of that base with 15% relative log-scaled search demand.
 - The overall formula is versioned and combines website readiness (20%), keyword opportunity (25%), current-ranking opportunity (20%), SERP opportunity (20%), and competitive gaps (15%).
 - Each keyword stores its coverage, relevance, priority, classification, component signals, and a deterministic rationale.
-- Provider metrics remain optional: unavailable volume, CPC, and paid-competition values stay null and are explicitly disclosed in the report contract.
+- Fixture mode tolerates unavailable metrics. Live readiness requires a complete Google Ads credential set; individual missing provider values stay null and are explicitly disclosed in the report contract.
 
 ### AI synthesis
 
@@ -98,7 +102,7 @@ Prisma models preserve raw evidence and synthesized output separately:
 - Displayed evidence statements and all provider/deterministic values are assembled by application code rather than copied from model prose.
 - Provider calls use a constant server-side origin, API-key header, validated model name, timeout, output-token cap, and streamed response-size limit.
 - Missing configuration, provider errors, malformed output, and policy violations are isolated as warnings and produce a conservative deterministic fallback.
-- Persisted report schema version `1.1` records whether synthesis used Gemini or the fallback and identifies the model when applicable.
+- Persisted report schema version `1.2` includes keyword volume, CPC, paid competition, and monthly trend data while recording whether synthesis used Gemini or the fallback.
 
 ### Completion webhook
 
@@ -121,7 +125,7 @@ The eventual live pipeline must preserve three layers:
 
 The LLM may explain collected and calculated evidence. It may not invent ranking positions, volumes, traffic, competitors, conversions, or guaranteed outcomes.
 
-## Planned live pipeline
+## Live pipeline
 
 ```text
 validate + SSRF gate
@@ -130,14 +134,14 @@ validate + SSRF gate
   → location-aware SERP collection
   → submitted-domain ranking detection
   → recurring competitor classification
-  → keyword metrics (optional, never invented)
+  → Google Ads keyword metrics (implemented, never invented)
   → deterministic opportunity scoring (implemented)
   → schema-constrained Gemini synthesis (implemented)
   → report persistence
   → isolated webhook delivery (implemented)
 ```
 
-Every external stage will return evidence plus warnings. A missing optional source, such as keyword volume, should downgrade report coverage rather than fail the assessment. Critical failure is reserved for cases where meaningful analysis is impossible.
+Every external stage returns evidence plus warnings. A per-assessment metrics failure downgrades report coverage rather than failing the assessment, while live-mode readiness prevents knowingly incomplete provider configuration. Critical failure is reserved for cases where meaningful analysis is impossible.
 
 ## Security baseline
 

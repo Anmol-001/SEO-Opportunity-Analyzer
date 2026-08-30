@@ -32,10 +32,12 @@ const source: SynthesisSource = {
   industry: "SEO software",
   keywords: [
     {
+      cpc: null,
       competitorFrequency: 3,
       evidence: { status: "available", serpFeatures: ["people_also_ask"] },
       intent: "commercial",
       keyword: "seo opportunity tool",
+      monthlyTrend: null,
       paidCompetitionSignal: null,
       rankingPosition: null,
       searchVolume: null,
@@ -67,8 +69,10 @@ const scoring = scoreSeoOpportunity({
     evidence: keyword.evidence,
     intent: keyword.intent,
     keyword: keyword.keyword,
+    paidCompetitionSignal: keyword.paidCompetitionSignal,
     rankingPosition: keyword.rankingPosition,
     rankingUrl: null,
+    searchVolume: keyword.searchVolume,
   })),
   location: source.location,
   pages: source.pages.map((page) => ({

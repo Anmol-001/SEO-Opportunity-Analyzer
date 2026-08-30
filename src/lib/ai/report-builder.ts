@@ -24,7 +24,9 @@ function keywordOpportunities(
       return score
         ? [
             {
+              cpc: keyword.cpc,
               keyword: keyword.keyword,
+              monthlyTrend: keyword.monthlyTrend,
               searchVolume: keyword.searchVolume,
               paidCompetitionSignal: keyword.paidCompetitionSignal,
               rankingPosition: keyword.rankingPosition,
@@ -81,7 +83,10 @@ function dataAvailability(
 ) {
   const metrics = source.keywords.some(
     (keyword) =>
-      keyword.searchVolume !== null || keyword.paidCompetitionSignal !== null,
+      keyword.searchVolume !== null ||
+      keyword.cpc !== null ||
+      keyword.paidCompetitionSignal !== null ||
+      keyword.monthlyTrend !== null,
   );
   return {
     website: scoring.coverage.websitePages > 0,

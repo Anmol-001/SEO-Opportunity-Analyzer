@@ -114,23 +114,59 @@ function priorityLabel(score: number): OpportunityPriority {
   return "low";
 }
 
+function demandOpportunityScore(
+  searchVolume: number | null,
+  maximumSearchVolume: number,
+) {
+  if (searchVolume === null) return null;
+  if (searchVolume <= 0 || maximumSearchVolume <= 0) return 0;
+  return clamp(
+    Math.round(
+      (Math.log1p(searchVolume) / Math.log1p(maximumSearchVolume)) * 100,
+    ),
+  );
+}
+
+function metricRationale(
+  searchVolume: number | null,
+  paidCompetitionSignal: number | null,
+) {
+  if (searchVolume === null && paidCompetitionSignal === null) {
+    return " Search-volume data is unavailable.";
+  }
+  const details: string[] = [];
+  if (searchVolume !== null) {
+    details.push(
+      `approximately ${searchVolume.toLocaleString("en-US")} average monthly searches`,
+    );
+  }
+  if (paidCompetitionSignal !== null) {
+    details.push(
+      `a ${Math.round(paidCompetitionSignal * 100)}/100 paid-competition signal`,
+    );
+  }
+  return ` Google Ads reports ${details.join(" and ")}; paid competition is an advertising signal, not SEO difficulty.`;
+}
+
 function keywordRationale(input: {
   competitorFrequency: number;
   contentCoverage: number;
   opportunityType: "existing" | "potential";
+  paidCompetitionSignal: number | null;
   rankingPosition: number | null;
+  searchVolume: number | null;
 }) {
   const competitorText =
     input.competitorFrequency > 0
       ? ` ${input.competitorFrequency} direct competitor${input.competitorFrequency === 1 ? "" : "s"} appeared in the collected results.`
       : " No direct-competitor recurrence was detected for this query.";
   if (input.rankingPosition !== null) {
-    return `The submitted domain ranks #${input.rankingPosition}, so this is an existing visibility opportunity.${competitorText} Search-volume data is unavailable.`;
+    return `The submitted domain ranks #${input.rankingPosition}, so this is an existing visibility opportunity.${competitorText}${metricRationale(input.searchVolume, input.paidCompetitionSignal)}`;
   }
   if (input.opportunityType === "existing") {
-    return `Relevant on-site coverage (${Math.round(input.contentCoverage * 100)}%) exists, but the submitted domain was not found in the collected results.${competitorText} Search-volume data is unavailable.`;
+    return `Relevant on-site coverage (${Math.round(input.contentCoverage * 100)}%) exists, but the submitted domain was not found in the collected results.${competitorText}${metricRationale(input.searchVolume, input.paidCompetitionSignal)}`;
   }
-  return `No current ranking or sufficiently relevant submitted page was found (${Math.round(input.contentCoverage * 100)}% coverage).${competitorText} Search-volume data is unavailable.`;
+  return `No current ranking or sufficiently relevant submitted page was found (${Math.round(input.contentCoverage * 100)}% coverage).${competitorText}${metricRationale(input.searchVolume, input.paidCompetitionSignal)}`;
 }
 
 function structuredDataPresent(value: unknown) {
@@ -205,6 +241,10 @@ export function scoreSeoOpportunity(input: {
   const sortedKeywords = [...input.keywords].sort((a, b) =>
     a.keyword.localeCompare(b.keyword),
   );
+  const maximumSearchVolume = Math.max(
+    0,
+    ...sortedKeywords.map((keyword) => keyword.searchVolume ?? 0),
+  );
   const keywords: ScoredKeywordOpportunity[] = sortedKeywords.map((keyword, index) => {
     const businessRelevance = keywordBusinessRelevance(keyword.keyword, businessTerms);
     const contentCoverage = keywordContentCoverage(keyword.keyword, input.pages);
@@ -212,7 +252,7 @@ export function scoreSeoOpportunity(input: {
     const competitorEvidence = clamp(keyword.competitorFrequency * 20);
     const contentGap = Math.round((1 - contentCoverage) * 100);
     const queryIntentValue = intentValue(keyword.intent);
-    const priorityScore = clamp(
+    const basePriorityScore = clamp(
       Math.round(
         businessRelevance * 0.3 +
           rankingOpportunity * 0.25 +
@@ -221,6 +261,14 @@ export function scoreSeoOpportunity(input: {
           queryIntentValue * 0.1,
       ),
     );
+    const demandOpportunity = demandOpportunityScore(
+      keyword.searchVolume,
+      maximumSearchVolume,
+    );
+    const priorityScore =
+      demandOpportunity === null
+        ? basePriorityScore
+        : clamp(Math.round(basePriorityScore * 0.85 + demandOpportunity * 0.15));
     const opportunityType =
       keyword.rankingPosition !== null ||
       (contentCoverage >= 0.8 && businessRelevance >= 50)
@@ -240,12 +288,15 @@ export function scoreSeoOpportunity(input: {
         competitorFrequency: keyword.competitorFrequency,
         contentCoverage,
         opportunityType,
+        paidCompetitionSignal: keyword.paidCompetitionSignal,
         rankingPosition: keyword.rankingPosition,
+        searchVolume: keyword.searchVolume,
       }),
       signals: {
         businessRelevance,
         competitorEvidence,
         contentGap,
+        demandOpportunity,
         intentValue: queryIntentValue,
         rankingOpportunity,
       },
@@ -283,14 +334,17 @@ export function scoreSeoOpportunity(input: {
         (competitor) => isRecord(competitor.evidence) && competitor.evidence.page,
       ).length,
       directCompetitors: directCompetitors.length,
-      keywordMetricsAvailable: false,
+      keywordMetricsAvailable: input.keywords.some(
+        (keyword) =>
+          keyword.searchVolume !== null || keyword.paidCompetitionSignal !== null,
+      ),
       keywords: keywords.length,
       serpQueriesAvailable: input.keywords.filter((keyword) =>
         hasAvailableSerp(keyword.evidence),
       ).length,
       websitePages: input.pages.length,
     },
-    formulaVersion: "1.0",
+    formulaVersion: "1.1",
     keywords,
     overallScore,
     weights,

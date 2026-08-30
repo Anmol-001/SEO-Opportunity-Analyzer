@@ -50,11 +50,15 @@ export function runtimeReadiness(
   const production = nodeEnvironment === "production";
   const database = configured(environment.DATABASE_URL);
   const ai = configured(environment.GEMINI_API_KEY);
-  const dataForSeo = Boolean(
-    configured(environment.DATAFORSEO_LOGIN) &&
-      configured(environment.DATAFORSEO_PASSWORD),
-  );
   const serper = configured(environment.SERPER_API_KEY);
+  const googleAds = [
+    "GOOGLE_ADS_DEVELOPER_TOKEN",
+    "GOOGLE_ADS_CUSTOMER_ID",
+    "GOOGLE_ADS_LOGIN_CUSTOMER_ID",
+    "GOOGLE_ADS_CLIENT_ID",
+    "GOOGLE_ADS_CLIENT_SECRET",
+    "GOOGLE_ADS_REFRESH_TOKEN",
+  ].every((name) => configured(environment[name]));
   const webhook = validWebhook(environment.WEBHOOK_URL);
   const rateLimit = validSecret(environment.RATE_LIMIT_SALT);
   const publicOrigin = validPublicOrigin(
@@ -72,11 +76,8 @@ export function runtimeReadiness(
   const missingForLive: string[] = [];
   if (!database) missingForLive.push("DATABASE_URL");
   if (!ai) missingForLive.push("GEMINI_API_KEY");
-  if (!dataForSeo && !serper) {
-    missingForLive.push(
-      "DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD or SERPER_API_KEY",
-    );
-  }
+  if (!serper) missingForLive.push("SERPER_API_KEY");
+  if (!googleAds) missingForLive.push("complete GOOGLE_ADS_* credentials");
   if (!webhook) missingForLive.push("WEBHOOK_URL");
   if (!rateLimit) missingForLive.push("RATE_LIMIT_SALT (at least 32 random characters)");
   if (!publicOrigin) missingForLive.push("NEXT_PUBLIC_APP_URL (trusted HTTPS origin)");
@@ -86,7 +87,8 @@ export function runtimeReadiness(
   const readyForLive =
     database &&
     ai &&
-    (dataForSeo || serper) &&
+    serper &&
+    googleAds &&
     webhook &&
     rateLimit &&
     publicOrigin &&
@@ -106,8 +108,8 @@ export function runtimeReadiness(
     services: {
       database,
       ai,
-      dataForSeo,
       serper,
+      googleAds,
       webhook,
       rateLimit,
       publicOrigin,

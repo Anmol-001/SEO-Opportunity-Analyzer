@@ -9,6 +9,10 @@ import {
   researchAndPersistSubmission,
 } from "@/lib/research/persist-serp-research";
 import {
+  collectAndPersistKeywordMetrics,
+  persistKeywordMetricsFailure,
+} from "@/lib/research/persist-keyword-metrics";
+import {
   discoverAndPersistCompetitors,
   persistCompetitorDiscoveryFailure,
 } from "@/lib/competitors/persist-competitors";
@@ -101,6 +105,28 @@ export async function runAnalysisPipeline(submissionId: string) {
       where: { id: submissionId },
       data: {
         status: "keywords",
+        progressMessage: "Collecting Google Ads keyword demand signals",
+      },
+    });
+    try {
+      const metrics = await collectAndPersistKeywordMetrics(submissionId);
+      await db.submission.update({
+        where: { id: submissionId },
+        data: {
+          progressMessage:
+            metrics.availableCount > 0
+              ? `Search-volume metrics collected for ${metrics.availableCount} of ${metrics.keywordCount} keywords`
+              : "Keyword metrics unavailable; scoring available evidence",
+        },
+      });
+    } catch (error) {
+      await persistKeywordMetricsFailure(submissionId, error);
+    }
+    await delay(350);
+
+    await db.submission.update({
+      where: { id: submissionId },
+      data: {
         progressMessage: "Calculating deterministic keyword opportunities",
       },
     });
@@ -122,13 +148,13 @@ export async function runAnalysisPipeline(submissionId: string) {
         where: { submissionId },
         create: {
           submissionId,
-          schemaVersion: "1.1",
+          schemaVersion: "1.2",
           opportunityScore: scoring.overallScore,
           executiveSummary: reportPayload.executiveSummary.overallAssessment,
           payload: reportPayload as unknown as Prisma.InputJsonValue,
         },
         update: {
-          schemaVersion: "1.1",
+          schemaVersion: "1.2",
           opportunityScore: scoring.overallScore,
           executiveSummary: reportPayload.executiveSummary.overallAssessment,
           payload: reportPayload as unknown as Prisma.InputJsonValue,

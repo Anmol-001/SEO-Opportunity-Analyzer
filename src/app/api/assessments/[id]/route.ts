@@ -71,6 +71,7 @@ export async function GET(
           searchVolume: true,
           cpc: true,
           paidCompetitionSignal: true,
+          monthlyTrend: true,
           evidence: true,
         },
       },

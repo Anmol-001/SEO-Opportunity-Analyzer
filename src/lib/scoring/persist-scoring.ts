@@ -38,8 +38,10 @@ export async function scoreAndPersistSubmission(submissionId: string) {
           evidence: true,
           intent: true,
           keyword: true,
+          paidCompetitionSignal: true,
           rankingPosition: true,
           rankingUrl: true,
+          searchVolume: true,
         },
       },
       competitors: {

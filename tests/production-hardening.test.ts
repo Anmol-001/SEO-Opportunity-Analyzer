@@ -109,6 +109,12 @@ test("makes health readiness depend on the selected analysis mode", () => {
     DATABASE_URL: "postgresql://configured",
     GEMINI_API_KEY: "configured",
     SERPER_API_KEY: "configured",
+    GOOGLE_ADS_DEVELOPER_TOKEN: "configured",
+    GOOGLE_ADS_CUSTOMER_ID: "1234567890",
+    GOOGLE_ADS_LOGIN_CUSTOMER_ID: "9876543210",
+    GOOGLE_ADS_CLIENT_ID: "configured",
+    GOOGLE_ADS_CLIENT_SECRET: "configured",
+    GOOGLE_ADS_REFRESH_TOKEN: "configured",
     WEBHOOK_URL: "https://webhook.example/complete",
     RATE_LIMIT_SALT: "r".repeat(32),
     NEXT_PUBLIC_APP_URL: "https://searchlight.example",
@@ -119,6 +125,16 @@ test("makes health readiness depend on the selected analysis mode", () => {
   assert.equal(live.analysisMode, "live");
   assert.equal(live.readyForLive, true);
   assert.equal(live.readyForCurrentMode, true);
+  assert.equal(live.services.googleAds, true);
+
+  const missingGoogleAds = runtimeReadiness(
+    { ...completeLiveEnvironment, GOOGLE_ADS_REFRESH_TOKEN: "" },
+    "production",
+  );
+  assert.equal(missingGoogleAds.readyForLive, false);
+  assert.ok(
+    missingGoogleAds.missingForLive.includes("complete GOOGLE_ADS_* credentials"),
+  );
 
   const weakSalt = runtimeReadiness(
     { ...completeLiveEnvironment, RATE_LIMIT_SALT: "replace-with-a-long-random-value" },
